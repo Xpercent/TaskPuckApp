@@ -1,29 +1,42 @@
 import SwiftUI
 
-/// 液态玻璃 (Liquid Glass / Glassmorphism) 视觉效果修饰器
+/// 液态玻璃 (Liquid Glass / Glassmorphism) 效果修饰器
 public struct LiquidGlassCardModifier: ViewModifier {
-    public var cornerRadius: CGFloat
-    public var borderColor: Color
+    var cornerRadius: CGFloat
+    var opacity: Double
 
-    public init(cornerRadius: CGFloat = 20, borderColor: Color = Color.white.opacity(0.3)) {
+    public init(cornerRadius: CGFloat = 24, opacity: Double = 0.6) {
         self.cornerRadius = cornerRadius
-        self.borderColor = borderColor
+        self.opacity = opacity
     }
 
     public func body(content: Content) -> some View {
         content
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(.ultraThinMaterial.opacity(opacity))
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(borderColor, lineWidth: 0.8)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.6),
+                                .white.opacity(0.1),
+                                .black.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
             )
-            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 5)
+            .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 8)
     }
 }
 
 extension View {
-    /// 一键应用液态毛玻璃卡片样式
-    public func liquidGlassCard(cornerRadius: CGFloat = 20, borderColor: Color = Color.white.opacity(0.3)) -> some View {
-        self.modifier(LiquidGlassCardModifier(cornerRadius: cornerRadius, borderColor: borderColor))
+    public func liquidGlassCard(cornerRadius: CGFloat = 24, opacity: Double = 0.6) -> some View {
+        self.modifier(LiquidGlassCardModifier(cornerRadius: cornerRadius, opacity: opacity))
     }
 }

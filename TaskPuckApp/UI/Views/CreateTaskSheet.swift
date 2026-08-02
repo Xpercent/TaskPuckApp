@@ -7,6 +7,7 @@ public struct CreateTaskSheet: View {
     @State private var taskTitle: String = "回复邮件"
     @State private var selectedDurationIndex: Int = 1 // 15分钟
     @State private var selectedRecurrenceIndex: Int = 0 // 仅一次
+    @State private var isCompleted: Bool = false
 
     private let durations = ["1", "15分钟", "30", "45", "1小时", "1.5小时"]
     private let durationMinutesMap = [1, 15, 30, 45, 60, 90]
@@ -14,94 +15,141 @@ public struct CreateTaskSheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Top Hero Red/Pink Header Area
-            VStack(alignment: .leading, spacing: 16) {
-                // Close "X" Button
-                Button(action: { dismiss() }) {
+            // 顶部粉红 Hero 卡片区
+            VStack(alignment: .leading, spacing: 20) {
+                // 关闭按钮
+                Button(action: {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    dismiss()
+                }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.black)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 38, height: 38)
                         .background(Color.white)
                         .clipShape(Circle())
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                 }
                 .padding(.top, 16)
 
                 Spacer()
 
-                // Icon & Title & Checkbox Row
+                // 图标 + 标题输入框 + 打勾按钮
                 HStack(alignment: .center, spacing: 16) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.white.opacity(0.85))
-                            .frame(width: 64, height: 64)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: 68, height: 68)
 
                         Image(systemName: "at")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundColor(Color(red: 0.95, green: 0.55, blue: 0.55))
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundColor(Color(red: 0.93, green: 0.55, blue: 0.55))
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("30分钟 · 收件箱 📥")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(Color.white.opacity(0.8))
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 4) {
+                            Text("\(durationMinutesMap[selectedDurationIndex])分钟 · 收件箱")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Color.white.opacity(0.9))
+                            Image(systemName: "tray.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color.white.opacity(0.9))
+                        }
 
                         TextField("任务名称", text: $taskTitle)
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.white)
                     }
 
                     Spacer()
 
-                    Circle()
-                        .stroke(Color.white, lineWidth: 2)
-                        .frame(width: 22, height: 22)
-                }
-                .padding(.bottom, 20)
-            }
-            .padding(.horizontal, 20)
-            .frame(height: 220)
-            .background(Color(red: 0.88, green: 0.52, blue: 0.52))
+                    // 右侧完成状态切换按钮
+                    Button(action: {
+                        withAnimation(.spring(response: 0.2)) {
+                            isCompleted.toggle()
+                        }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    }) {
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                                .frame(width: 26, height: 26)
 
-            // Body Area with Pill Options
-            VStack(spacing: 24) {
-                // Duration Selectors Segment
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(0..<durations.count, id: \.self) { idx in
-                            let isSelected = (idx == selectedDurationIndex)
-                            Text(durations[idx])
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(isSelected ? .white : Color(red: 0.3, green: 0.3, blue: 0.35))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background(isSelected ? Color(red: 0.95, green: 0.55, blue: 0.55) : Color.clear, in: Capsule())
+                            if isCompleted {
+                                Circle()
+                                    .fill(Color.white)
+                                    .frame(width: 26, height: 26)
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(Color(red: 0.88, green: 0.52, blue: 0.52))
+                            }
                         }
                     }
-                    .padding(6)
-                    .background(Color.black.opacity(0.04), in: Capsule())
                 }
-                .padding(.top, 24)
+                .padding(.bottom, 24)
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 230)
+            .background(Color(red: 0.88, green: 0.52, blue: 0.52))
 
-                // Recurrence Selectors Segment
-                HStack(spacing: 8) {
-                    ForEach(0..<recurrences.count, id: \.self) { idx in
-                        let isSelected = (idx == selectedRecurrenceIndex)
-                        Text(recurrences[idx])
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(isSelected ? .white : Color(red: 0.3, green: 0.3, blue: 0.35))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(isSelected ? Color(red: 0.95, green: 0.55, blue: 0.55) : Color.clear, in: Capsule())
+            // 选项选择区
+            VStack(spacing: 20) {
+                // 时间时长选择器（非 ScrollView，完全等宽塞满容器，支持点击切换）
+                HStack(spacing: 4) {
+                    ForEach(0..<durations.count, id: \.self) { idx in
+                        let isSelected = (idx == selectedDurationIndex)
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                selectedDurationIndex = idx
+                            }
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }) {
+                            Text(durations[idx])
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(isSelected ? .white : Color(red: 0.25, green: 0.25, blue: 0.3))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 38)
+                                .background(
+                                    isSelected ? Color(red: 0.93, green: 0.55, blue: 0.55) : Color.clear,
+                                    in: Capsule()
+                                )
+                        }
                     }
                 }
-                .padding(6)
+                .padding(4)
+                .background(Color.black.opacity(0.04), in: Capsule())
+                .padding(.top, 24)
+
+                // 重复规则选择器（等宽平铺，支持点击切换）
+                HStack(spacing: 4) {
+                    ForEach(0..<recurrences.count, id: \.self) { idx in
+                        let isSelected = (idx == selectedRecurrenceIndex)
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                selectedRecurrenceIndex = idx
+                            }
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }) {
+                            Text(recurrences[idx])
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(isSelected ? .white : Color(red: 0.25, green: 0.25, blue: 0.3))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 40)
+                                .background(
+                                    isSelected ? Color(red: 0.93, green: 0.55, blue: 0.55) : Color.clear,
+                                    in: Capsule()
+                                )
+                        }
+                    }
+                }
+                .padding(4)
                 .background(Color.black.opacity(0.04), in: Capsule())
 
                 Spacer()
 
-                // Create Task Bottom Action Button
+                // 创建任务主按钮
                 Button(action: {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     let dur = durationMinutesMap[selectedDurationIndex]
                     let rule: RecurrenceRule = selectedRecurrenceIndex == 0 ? .once(date: engine.selectedDateString) : .daily
                     engine.createNewTask(title: taskTitle, durationMinutes: dur, recurrence: rule, startTime: "10:00")
@@ -111,11 +159,12 @@ public struct CreateTaskSheet: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 54)
-                        .background(Color(red: 0.95, green: 0.55, blue: 0.55))
+                        .frame(height: 56)
+                        .background(Color(red: 0.93, green: 0.55, blue: 0.55))
                         .clipShape(Capsule())
+                        .shadow(color: Color(red: 0.93, green: 0.55, blue: 0.55).opacity(0.3), radius: 10, x: 0, y: 5)
                 }
-                .padding(.bottom, 24)
+                .padding(.bottom, 28)
             }
             .padding(.horizontal, 20)
             .background(Color(red: 0.96, green: 0.96, blue: 0.97))
