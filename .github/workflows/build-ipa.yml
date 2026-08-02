@@ -2,7 +2,7 @@ name: Build iOS IPA (SwiftUI)
 
 on:
   push:
-    branches: [ "main", "release/*" ]
+    branches: ["main", "release/*"]
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
       - name: Select Xcode Version 26.3
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.3'
+          xcode-version: "26.3"
 
       - name: Show Xcode Version Info
         run: xcodebuild -version
@@ -44,11 +44,19 @@ jobs:
 
       - name: Export IPA (Unsigned / Ad-Hoc)
         run: |
+          # 1. 彻底清理临时目录，防止残余文件污染 Payload
+          rm -rf $RUNNER_TEMP/Export $RUNNER_TEMP/Payload $RUNNER_TEMP/TaskPuckApp.ipa
+
           mkdir -p $RUNNER_TEMP/Export
           mkdir -p $RUNNER_TEMP/Payload
-          cp -r $RUNNER_TEMP/TaskPuckApp.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
+
+          # 2. 使用 cp -a 代替 cp -r，完全保留文件属性与软链接
+          cp -a $RUNNER_TEMP/TaskPuckApp.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
+
           cd $RUNNER_TEMP
-          zip -r TaskPuckApp.ipa Payload
+          # 3. 核心修复：添加 -y 参数保存软链接 (Symlinks)，防止生成损坏的 IPA
+          zip -ry TaskPuckApp.ipa Payload
+
           mv TaskPuckApp.ipa $RUNNER_TEMP/Export/
 
       - name: Upload IPA Artifact
