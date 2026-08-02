@@ -34,6 +34,7 @@ public enum Weekday: String, Codable, CaseIterable {
 public enum RecurrenceRule: Codable, Equatable {
     case daily
     case weekly(weekdays: [Weekday])
+    case monthly(day: Int)
     case once(date: String) // YYYY-MM-DD
     case dateRange(start: String, end: String, autoArchive: Bool?)
 
@@ -42,6 +43,7 @@ public enum RecurrenceRule: Codable, Equatable {
         case .once: return "仅一次"
         case .daily: return "每日"
         case .weekly: return "每周"
+        case .monthly: return "每月"
         case .dateRange: return "每月"
         }
     }

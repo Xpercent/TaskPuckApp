@@ -1,10 +1,17 @@
 import Foundation
 
 public enum DateUtils {
+    public static var calendar: Calendar {
+        var calendar = Calendar.autoupdatingCurrent
+        calendar.firstWeekday = 1
+        return calendar
+    }
+
     public static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.locale = Locale(identifier: "zh_CN")
+        formatter.calendar = Calendar(identifier: .gregorian)
         return formatter
     }()
 
@@ -25,6 +32,32 @@ public enum DateUtils {
 
     public static func todayString() -> String {
         return string(from: Date())
+    }
+
+    public static func startOfWeek(containing date: Date, addingWeeks weeks: Int = 0) -> Date {
+        let start = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
+        return calendar.date(byAdding: .weekOfYear, value: weeks, to: start) ?? start
+    }
+
+    public static func yearString(from date: Date) -> String {
+        String(calendar.component(.year, from: date))
+    }
+
+    public static func monthDayString(from date: Date) -> String {
+        "\(calendar.component(.month, from: date))月\(calendar.component(.day, from: date))日"
+    }
+
+    public static func weekdayString(from date: Date) -> String {
+        let symbols = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+        return symbols[calendar.component(.weekday, from: date) - 1]
+    }
+
+    public static func dayString(from date: Date) -> String {
+        String(calendar.component(.day, from: date))
+    }
+
+    public static func accessibilityDateString(from date: Date) -> String {
+        "\(yearString(from: date))年\(monthDayString(from: date))，\(weekdayString(from: date))"
     }
 
     public static func calculateEndTime(startTime: String, durationMinutes: Int) -> String {

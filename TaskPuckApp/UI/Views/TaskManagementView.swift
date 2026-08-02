@@ -9,31 +9,52 @@ public struct TaskManagementView: View {
     ]
 
     public var body: some View {
+        let stats = engine.overviewStats()
+
         VStack(alignment: .leading, spacing: 20) {
-            Text("Task Management")
+            Text("任务管理")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(Color(red: 0.15, green: 0.15, blue: 0.2))
+                .foregroundStyle(Color(red: 0.15, green: 0.15, blue: 0.2))
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
 
             LazyVGrid(columns: columns, spacing: 16) {
-                // 卡片 1: 今天
-                CategoryGridCard(title: "今天", count: "1", iconSymbol: "calendar", gradientColors: [Color(red: 0.38, green: 0.68, blue: 0.93), Color(red: 0.28, green: 0.58, blue: 0.88)])
-                
-                // 卡片 2: 计划
-                CategoryGridCard(title: "计划", count: "2", iconSymbol: "calendar", gradientColors: [Color(red: 0.93, green: 0.52, blue: 0.52), Color(red: 0.88, green: 0.42, blue: 0.42)])
-                
-                // 卡片 3: 全部
-                CategoryGridCard(title: "全部", count: "3", iconSymbol: "archivebox.fill", gradientColors: [Color(red: 0.28, green: 0.28, blue: 0.30), Color(red: 0.22, green: 0.22, blue: 0.24)])
-                
-                // 卡片 4: 旗标
-                CategoryGridCard(title: "旗标", count: "0", iconSymbol: "flag.fill", gradientColors: [Color(red: 0.95, green: 0.73, blue: 0.48), Color(red: 0.92, green: 0.65, blue: 0.38)])
-                
-                // 卡片 5: 紧急
-                CategoryGridCard(title: "紧急", count: "1", iconSymbol: "clock.fill", gradientColors: [Color(red: 0.93, green: 0.42, blue: 0.58), Color(red: 0.88, green: 0.32, blue: 0.48)])
-                
-                // 卡片 6: 完成
-                CategoryGridCard(title: "完成", count: nil, iconSymbol: "checkmark", gradientColors: [Color(red: 0.55, green: 0.60, blue: 0.65), Color(red: 0.45, green: 0.50, blue: 0.55)])
+                CategoryGridCard(
+                    title: "今天",
+                    count: stats.today,
+                    iconSymbol: "calendar",
+                    gradientColors: [Color(red: 0.38, green: 0.68, blue: 0.93), Color(red: 0.28, green: 0.58, blue: 0.88)]
+                )
+                CategoryGridCard(
+                    title: "计划",
+                    count: stats.planned,
+                    iconSymbol: "calendar.badge.clock",
+                    gradientColors: [Color(red: 0.93, green: 0.52, blue: 0.52), Color(red: 0.88, green: 0.42, blue: 0.42)]
+                )
+                CategoryGridCard(
+                    title: "全部",
+                    count: stats.all,
+                    iconSymbol: "archivebox.fill",
+                    gradientColors: [Color(red: 0.28, green: 0.28, blue: 0.30), Color(red: 0.22, green: 0.22, blue: 0.24)]
+                )
+                CategoryGridCard(
+                    title: "高优先级",
+                    count: stats.highPriority,
+                    iconSymbol: "flag.fill",
+                    gradientColors: [Color(red: 0.95, green: 0.73, blue: 0.48), Color(red: 0.92, green: 0.65, blue: 0.38)]
+                )
+                CategoryGridCard(
+                    title: "紧急",
+                    count: stats.urgent,
+                    iconSymbol: "clock.fill",
+                    gradientColors: [Color(red: 0.93, green: 0.42, blue: 0.58), Color(red: 0.88, green: 0.32, blue: 0.48)]
+                )
+                CategoryGridCard(
+                    title: "完成",
+                    count: stats.completed,
+                    iconSymbol: "checkmark",
+                    gradientColors: [Color(red: 0.55, green: 0.60, blue: 0.65), Color(red: 0.45, green: 0.50, blue: 0.55)]
+                )
             }
             .padding(.horizontal, 20)
 
@@ -45,7 +66,7 @@ public struct TaskManagementView: View {
 
 struct CategoryGridCard: View {
     let title: String
-    let count: String?
+    let count: Int
     let iconSymbol: String
     let gradientColors: [Color]
 
@@ -54,24 +75,22 @@ struct CategoryGridCard: View {
             HStack(alignment: .top) {
                 Image(systemName: iconSymbol)
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .frame(width: 32, height: 32)
                     .background(Color.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                 Spacer()
 
-                if let count {
-                    Text(count)
-                        .font(.system(size: 32, weight: .heavy, design: .rounded)) // 👈 修正：.extrabold 改为 .heavy
-                        .foregroundColor(.white)
-                }
+                Text(count, format: .number)
+                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
             }
 
             Spacer()
 
             Text(title)
                 .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
         }
         .padding(16)
         .frame(height: 105)

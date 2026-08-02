@@ -78,8 +78,8 @@ struct MainContainerView: View {
             } else {
                 ProgressView()
                     .onAppear {
-                        let eng = TaskEngine(modelContext: modelContext, initialDate: "2026-08-01")
-                        eng.initializeMVPData()
+                        let eng = TaskEngine(modelContext: modelContext)
+                        eng.selectDate(DateUtils.todayString())
                         self.engine = eng
                     }
             }

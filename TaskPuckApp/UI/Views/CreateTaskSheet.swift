@@ -4,7 +4,7 @@ public struct CreateTaskSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TaskEngine.self) private var engine
 
-    @State private var taskTitle: String = "回复邮件"
+    @State private var taskTitle: String = ""
     @State private var selectedDurationIndex: Int = 1 // 15分钟
     @State private var selectedRecurrenceIndex: Int = 0 // 仅一次
     @State private var isCompleted: Bool = false
@@ -151,8 +151,13 @@ public struct CreateTaskSheet: View {
                 Button(action: {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     let dur = durationMinutesMap[selectedDurationIndex]
-                    let rule: RecurrenceRule = selectedRecurrenceIndex == 0 ? .once(date: engine.selectedDateString) : .daily
-                    engine.createNewTask(title: taskTitle, durationMinutes: dur, recurrence: rule, startTime: "10:00")
+                    let rule = selectedRecurrenceRule
+                    engine.createNewTask(
+                        title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                        durationMinutes: dur,
+                        recurrence: rule,
+                        initialStatus: isCompleted ? .done : .todo
+                    )
                     dismiss()
                 }) {
                     Text("创建任务")
@@ -164,11 +169,32 @@ public struct CreateTaskSheet: View {
                         .clipShape(Capsule())
                         .shadow(color: Color(red: 0.93, green: 0.55, blue: 0.55).opacity(0.3), radius: 10, x: 0, y: 5)
                 }
+                .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
                 .padding(.bottom, 28)
             }
             .padding(.horizontal, 20)
             .background(Color(red: 0.96, green: 0.96, blue: 0.97))
         }
         .ignoresSafeArea()
+    }
+
+    private var selectedRecurrenceRule: RecurrenceRule {
+        guard let selectedDate = DateUtils.date(from: engine.selectedDateString) else {
+            return .once(date: engine.selectedDateString)
+        }
+
+        switch selectedRecurrenceIndex {
+        case 1:
+            return .daily
+        case 2:
+            let weekday = DateUtils.calendar.component(.weekday, from: selectedDate)
+            let weekdays: [Weekday] = [.sun, .mon, .tue, .wed, .thu, .fri, .sat]
+            return .weekly(weekdays: [weekdays[weekday - 1]])
+        case 3:
+            return .monthly(day: DateUtils.calendar.component(.day, from: selectedDate))
+        default:
+            return .once(date: engine.selectedDateString)
+        }
     }
 }

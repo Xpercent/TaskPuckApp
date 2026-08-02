@@ -9,6 +9,15 @@ public struct DisplayTimelineItem: Identifiable, Equatable {
     public var placement: TimelinePlacementEntity?
 }
 
+public struct TaskOverviewStats: Equatable {
+    public var today: Int = 0
+    public var planned: Int = 0
+    public var all: Int = 0
+    public var highPriority: Int = 0
+    public var urgent: Int = 0
+    public var completed: Int = 0
+}
+
 @Observable
 @MainActor
 public final class TaskEngine {
@@ -17,7 +26,7 @@ public final class TaskEngine {
     public var isReadOnly: Bool = false
     public var toastMessage: String?
 
-    public init(modelContext: ModelContext, initialDate: String = "2026-08-01") {
+    public init(modelContext: ModelContext, initialDate: String = DateUtils.todayString()) {
         self.modelContext = modelContext
         self.selectedDateString = initialDate
         self.updateTemporalSafetyState()
@@ -81,12 +90,28 @@ public final class TaskEngine {
             switch rule {
             case .daily: return true
             case .once(let date): if date == targetDate { return true }
-            case .weekly: return true
+            case .weekly(let weekdays):
+                if weekdays.contains(weekday(for: weekdayIndex)) { return true }
+            case .monthly(let day):
+                let targetDateObject = DateUtils.date(from: targetDate) ?? Date()
+                if DateUtils.calendar.component(.day, from: targetDateObject) == day { return true }
             case .dateRange(let start, let end, _):
                 if targetDate >= start && targetDate <= end { return true }
             }
         }
         return rules.isEmpty
+    }
+
+    private func weekday(for calendarWeekday: Int) -> Weekday {
+        switch calendarWeekday {
+        case 1: .sun
+        case 2: .mon
+        case 3: .tue
+        case 4: .wed
+        case 5: .thu
+        case 6: .fri
+        default: .sat
+        }
     }
 
     // MARK: - Engine Core 2: Auto Roll Overdue Tasks
@@ -136,6 +161,25 @@ public final class TaskEngine {
         return displayItems
     }
 
+    public func overviewStats(for targetDate: String = DateUtils.todayString()) -> TaskOverviewStats {
+        let taskDescriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { !$0.isArchived })
+        let tasks = (try? modelContext.fetch(taskDescriptor)) ?? []
+        let taskByID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+
+        let instanceDescriptor = FetchDescriptor<TaskInstanceEntity>()
+        let instances = (try? modelContext.fetch(instanceDescriptor)) ?? []
+        let validInstances = instances.filter { taskByID[$0.taskId] != nil && $0.status != .cancelled }
+
+        return TaskOverviewStats(
+            today: validInstances.filter { $0.currentDate == targetDate }.count,
+            planned: tasks.filter { $0.defaultPlacement != nil }.count,
+            all: tasks.count,
+            highPriority: tasks.filter { $0.priority == .high || $0.priority == .urgent }.count,
+            urgent: tasks.filter { $0.priority == .urgent }.count,
+            completed: validInstances.filter { $0.status == .done }.count
+        )
+    }
+
     // MARK: - Actions
 
     public func toggleTaskStatus(instance: TaskInstanceEntity) {
@@ -147,7 +191,13 @@ public final class TaskEngine {
         try? modelContext.save()
     }
 
-    public func createNewTask(title: String, durationMinutes: Int, recurrence: RecurrenceRule, startTime: String? = nil) {
+    public func createNewTask(
+        title: String,
+        durationMinutes: Int,
+        recurrence: RecurrenceRule,
+        startTime: String? = nil,
+        initialStatus: InstanceStatus = .todo
+    ) {
         if isReadOnly {
             self.toastMessage = "历史排期不可篡改"
             return
@@ -167,7 +217,7 @@ public final class TaskEngine {
             taskId: newTask.id,
             originalDate: selectedDateString,
             currentDate: selectedDateString,
-            status: .todo
+            status: initialStatus
         )
         modelContext.insert(newInstance)
 
@@ -180,40 +230,4 @@ public final class TaskEngine {
         try? modelContext.save()
     }
 
-    // MARK: - MVP Mock Data Seeder
-
-    public func initializeMVPData() {
-        try? modelContext.delete(model: TimelinePlacementEntity.self)
-        try? modelContext.delete(model: TaskInstanceEntity.self)
-        try? modelContext.delete(model: TaskEntity.self)
-
-        let task1 = TaskEntity(title: "早晨活力", iconSymbol: "alarm.fill", priority: .high, recurrenceRules: [.daily], defaultPlacement: DefaultPlacement(startTime: "07:00", duration: 15))
-        let task2 = TaskEntity(title: "回复邮件", iconSymbol: "at", priority: .urgent, recurrenceRules: [.daily], defaultPlacement: DefaultPlacement(startTime: "10:00", duration: 15))
-        let task3 = TaskEntity(title: "回复邮件", iconSymbol: "at", priority: .medium, recurrenceRules: [.daily], defaultPlacement: DefaultPlacement(startTime: "10:08", duration: 15))
-        let task4 = TaskEntity(title: "放松心情", iconSymbol: "moon.fill", priority: .low, recurrenceRules: [.daily], defaultPlacement: DefaultPlacement(startTime: "21:08", duration: 15))
-
-        modelContext.insert(task1)
-        modelContext.insert(task2)
-        modelContext.insert(task3)
-        modelContext.insert(task4)
-
-        let targetDate = "2026-08-01"
-
-        let inst1 = TaskInstanceEntity(taskId: task1.id, originalDate: targetDate, currentDate: targetDate, status: .done)
-        let inst2 = TaskInstanceEntity(taskId: task2.id, originalDate: targetDate, currentDate: targetDate, status: .todo)
-        let inst3 = TaskInstanceEntity(taskId: task3.id, originalDate: targetDate, currentDate: targetDate, status: .todo)
-        let inst4 = TaskInstanceEntity(taskId: task4.id, originalDate: targetDate, currentDate: targetDate, status: .todo)
-
-        modelContext.insert(inst1)
-        modelContext.insert(inst2)
-        modelContext.insert(inst3)
-        modelContext.insert(inst4)
-
-        modelContext.insert(TimelinePlacementEntity(instanceId: inst1.id, startTime: "07:00", endTime: "07:15"))
-        modelContext.insert(TimelinePlacementEntity(instanceId: inst2.id, startTime: "10:00", endTime: "10:15"))
-        modelContext.insert(TimelinePlacementEntity(instanceId: inst3.id, startTime: "10:08", endTime: "10:23"))
-        modelContext.insert(TimelinePlacementEntity(instanceId: inst4.id, startTime: "21:08", endTime: "21:23"))
-
-        try? modelContext.save()
-    }
 }
