@@ -62,7 +62,7 @@ struct CategoryGridCard: View {
 
                 if let count {
                     Text(count)
-                        .font(.system(size: 32, weight: .extrabold, design: .rounded))
+                        .font(.system(size: 32, weight: .heavy, design: .rounded)) // 👈 修正：.extrabold 改为 .heavy
                         .foregroundColor(.white)
                 }
             }
