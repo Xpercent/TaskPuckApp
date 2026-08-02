@@ -9,7 +9,7 @@ public struct CreateTaskSheet: View {
     @State private var selectedRecurrenceIndex: Int = 0 // 仅一次
     @State private var isCompleted: Bool = false
 
-    private let durations = ["1", "15分钟", "30", "45", "1小时", "1.5小时"]
+    private let durations = ["1m", "15m", "30m", "45m", "1h", "1.5h"]
     private let durationMinutesMap = [1, 15, 30, 45, 60, 90]
     private let recurrences = ["仅一次", "每日", "每周", "每月"]
 
@@ -24,12 +24,11 @@ public struct CreateTaskSheet: View {
                 }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.black)
+                        .foregroundStyle(.black)
                         .frame(width: 38, height: 38)
-                        .background(Color.white)
-                        .clipShape(Circle())
-                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                 }
+                .buttonStyle(.plain)
+                .nativeLiquidGlass(in: Circle(), interactive: true)
                 .padding(.top, 16)
 
                 Spacer()
