@@ -20,7 +20,6 @@ jobs:
       - name: Show Xcode Version Info
         run: xcodebuild -version
 
-      # 如果仓库中没有 .xcodeproj，自动安装 xcodegen 并现场生成 Xcode 工程
       - name: Generate Xcode Project if missing
         run: |
           if [ ! -d "TaskPuckApp.xcodeproj" ]; then
@@ -34,11 +33,14 @@ jobs:
           xcodebuild archive \
             -project TaskPuckApp.xcodeproj \
             -scheme TaskPuckApp \
+            -destination 'generic/platform=iOS' \
             -sdk iphoneos \
             -configuration Release \
             -archivePath $RUNNER_TEMP/TaskPuckApp.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_IDENTITY="" \
+            EXPANDED_CODE_SIGN_IDENTITY=""
 
       - name: Export IPA (Unsigned / Ad-Hoc)
         run: |
