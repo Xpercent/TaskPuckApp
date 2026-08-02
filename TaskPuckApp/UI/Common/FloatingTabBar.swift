@@ -25,16 +25,16 @@ public struct FloatingTabBar: View {
                 content
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16) // 外层左右边距略微缩减，让栏目更饱满
         .padding(.bottom, 12)
     }
 
     private var content: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             // 左侧 3 个 Tab 组合在一起的胶囊容器
             segmentedTabsContainer
             
-            // 右侧 plus 按钮（保持原样未动）
+            // 右侧 plus 按钮
             plusButton
         }
     }
@@ -46,7 +46,7 @@ public struct FloatingTabBar: View {
             tabButton(symbol: "list.bullet.indent", tab: 1)
             tabButton(symbol: "gearshape.fill", tab: 2)
         }
-        .padding(5) // 内边距，留给选中的灰色背景块空间
+        .padding(6) // 稍微增大内边距，匹配变大后的选中框
         .nativeLiquidGlass(
             in: Capsule(),
             interactive: true
@@ -67,35 +67,37 @@ public struct FloatingTabBar: View {
                 // 选中时的浅灰色底块滑块
                 if isSelected {
                     Capsule()
-                        .fill(Color.primary.opacity(0.08)) // 模仿图片中选中的浅灰色背景
+                        .fill(Color.primary.opacity(0.08))
                         .matchedGeometryEffect(id: "activeTabBackground", in: activeTabNamespace)
                 }
 
                 Image(systemName: symbol)
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold)) // 图标随之变大 (19 -> 22)
                     .foregroundStyle(
                         isSelected
-                        ? activeColor // 选中时为 #f39f99
-                        : Color.primary.opacity(0.85) // 未选中时为深色/黑灰色
+                        ? activeColor
+                        : Color.primary.opacity(0.85)
                     )
             }
-            .frame(width: 54, height: 42) // 保持合适的大小
+            .frame(width: 72, height: 56) // 【修改】：高度增加1/3 (42 -> 56)，宽度拉长 (54 -> 72)
+            .contentShape(Capsule()) // 【关键修复】：将整个 72x56 胶囊区域设为点击热区，避免透明处按压不响应
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel(for: tab))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    // plus 按钮完全未改动
+    // plus 按钮
     private var plusButton: some View {
         Button {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             onPlusTapped()
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: 26, weight: .semibold)) // 图标等比例变大 (22 -> 26)
                 .foregroundStyle(Color(red: 0.2, green: 0.2, blue: 0.25))
-                .frame(width: 52, height: 52)
+                .frame(width: 68, height: 68) // 【修改】：整体尺寸增大约1/3 (52x52 -> 68x68)
+                .contentShape(Circle()) // 【关键修复】：整个 68x68 圆形范围全面响应触摸
         }
         .buttonStyle(.plain)
         .nativeLiquidGlass(in: Circle(), interactive: true)

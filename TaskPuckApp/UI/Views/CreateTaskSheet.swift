@@ -17,19 +17,20 @@ public struct CreateTaskSheet: View {
         VStack(spacing: 0) {
             // 顶部粉红 Hero 卡片区
             VStack(alignment: .leading, spacing: 20) {
-                // 关闭按钮
-                Button(action: {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    dismiss()
-                }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.black)
-                        .frame(width: 38, height: 38)
-                }
-                .buttonStyle(.plain)
-                .nativeLiquidGlass(in: Circle(), interactive: true)
-                .padding(.top, 16)
+            // 关闭按钮
+            Button(action: {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                dismiss()
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 20, weight: .bold)) // 图标同步增大 (16 -> 20)
+                    .foregroundStyle(.black)
+                    .frame(width: 50, height: 50) // 【修改】：整体尺寸增大 1/3 (38x38 -> 50x50)
+                    .contentShape(Circle()) // 【关键修复】：将整个 50x50 圆形区域声明为点击热区
+            }
+            .buttonStyle(.plain)
+            .nativeLiquidGlass(in: Circle(), interactive: true)
+            .padding(.top, 16)
 
                 Spacer()
 
