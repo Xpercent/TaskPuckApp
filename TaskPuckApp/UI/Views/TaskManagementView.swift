@@ -187,8 +187,8 @@ private struct ManagedTaskRow: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(item.instance == nil)
-            .opacity(item.instance == nil ? 0.35 : 1)
+            // .disabled(item.instance == nil)
+            // .opacity(item.instance == nil ? 0.35 : 1)
             .accessibilityLabel(item.instance?.status == .done ? "标记为未完成" : "标记为已完成")
         }
         .padding(.horizontal, 14)

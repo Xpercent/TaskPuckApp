@@ -153,7 +153,7 @@ public struct CreateTaskSheet: View {
     }
 
     private var completionToggle: some View {
-        Button(action: onToggle) {
+        Button(action: {isCompleted.toggle()}) {
             ZStack {
                 Circle()
                     .strokeBorder(Color(hex: tintHex), lineWidth: 3)
@@ -409,7 +409,7 @@ public struct CreateTaskSheet: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
                 .background(
-                    isDisabled ? color.lighterColor : color,// 当 isDisabled 为 true 时调用 .lighterColor 变浅，删除按钮不受影响
+                    isDisabled ? color.lighterColor() : color,// 当 isDisabled 为 true 时调用 .lighterColor 变浅，删除按钮不受影响
                     in: Capsule()
                 )
         }
