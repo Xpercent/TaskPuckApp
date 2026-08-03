@@ -165,7 +165,7 @@ public struct CreateTaskSheet: View {
                         .frame(width: 24, height: 24)
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color(hex: task.tintHex))
+                        .foregroundStyle(Color(hex: tintHex))
                 }
             }
         }
