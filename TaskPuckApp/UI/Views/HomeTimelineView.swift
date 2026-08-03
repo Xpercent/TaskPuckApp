@@ -279,10 +279,3 @@ struct InteractiveTimelineRow: View {
         return Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: baseDate)
     }
 }
-
-private extension Color {
-    init(hex: String) {
-        let value = UInt64(hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted), radix: 16) ?? 0xEE8C8C
-        self.init(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
-    }
-}

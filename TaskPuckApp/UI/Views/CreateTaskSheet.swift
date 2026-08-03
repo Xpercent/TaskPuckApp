@@ -1,14 +1,13 @@
 import Foundation
 import SwiftUI
-import UIKit
 
 public struct CreateTaskSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TaskEngine.self) private var engine
 
     @State private var taskTitle = ""
-    @State private var selectedDurationIndex = 1
-    @State private var selectedRecurrenceIndex = 0
+    @State private var selectedDurationMinutes = 15
+    @State private var selectedRecurrence = RecurrenceOption.once
     @State private var startTime = Date()
     @State private var onceDate = Date()
     @State private var rangeStartDate = Date()
@@ -20,17 +19,29 @@ public struct CreateTaskSheet: View {
     @State private var tintHex = "EE8C8C"
     @State private var showsAppearancePicker = false
 
-    private let durations = ["1m", "15m", "30m", "45m", "1h", "1.5h"]
-    private let durationMinutesMap = [1, 15, 30, 45, 60, 90]
-    private let recurrences = ["仅一次", "每日", "每周", "每月", "日期"]
-    private let weekdayOptions: [(Weekday, String)] = [(.sun, "日"), (.mon, "一"), (.tue, "二"), (.wed, "三"), (.thu, "四"), (.fri, "五"), (.sat, "六")]
+    private let durationOptions = [
+        DurationOption(title: "1m", minutes: 1),
+        DurationOption(title: "15m", minutes: 15),
+        DurationOption(title: "30m", minutes: 30),
+        DurationOption(title: "45m", minutes: 45),
+        DurationOption(title: "1h", minutes: 60),
+        DurationOption(title: "1.5h", minutes: 90)
+    ]
+
+    private let weekdayOptions = [
+        WeekdayOption(weekday: .sun, title: "日"),
+        WeekdayOption(weekday: .mon, title: "一"),
+        WeekdayOption(weekday: .tue, title: "二"),
+        WeekdayOption(weekday: .wed, title: "三"),
+        WeekdayOption(weekday: .thu, title: "四"),
+        WeekdayOption(weekday: .fri, title: "五"),
+        WeekdayOption(weekday: .sat, title: "六")
+    ]
 
     public var body: some View {
         VStack(spacing: 0) {
-            // 1. 固定顶部的 Header 颜色区域
             header
 
-            // 2. 滚动内容层 + 最下方悬浮创建按钮
             ZStack(alignment: .bottom) {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -56,18 +67,12 @@ public struct CreateTaskSheet: View {
                     }
                 )
 
-                // 3. 悬浮位于最底部的创建任务按钮
                 createButton
             }
         }
         .background(Color(red: 0.96, green: 0.96, blue: 0.97))
         .ignoresSafeArea(.keyboard)
-        .onAppear {
-            guard let selectedDate = DateUtils.date(from: engine.selectedDateString) else { return }
-            onceDate = selectedDate
-            rangeStartDate = selectedDate
-            rangeEndDate = selectedDate
-        }
+        .onAppear(perform: initializeDates)
         .sheet(isPresented: $showsAppearancePicker) {
             AppearancePickerSheet(iconSymbol: $iconSymbol, tintHex: $tintHex)
                 .presentationDetents([.medium, .large])
@@ -78,7 +83,9 @@ public struct CreateTaskSheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Button { dismiss() } label: {
+                Button {
+                    dismiss()
+                } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.black)
@@ -87,12 +94,15 @@ public struct CreateTaskSheet: View {
                 }
                 .buttonStyle(.plain)
                 .nativeLiquidGlass(in: Circle(), interactive: true)
+
                 Spacer()
             }
             .padding(.top, 16)
 
             HStack(alignment: .center, spacing: 16) {
-                Button { showsAppearancePicker = true } label: {
+                Button {
+                    showsAppearancePicker = true
+                } label: {
                     ZStack {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(Color.white.opacity(0.9))
@@ -106,7 +116,7 @@ public struct CreateTaskSheet: View {
                 .accessibilityLabel("选择图标和颜色")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(durationMinutesMap[selectedDurationIndex])分钟 · \(timeString)")
+                    Text("\(selectedDurationMinutes)分钟 · \(timeString)")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
                     TextField("任务名称", text: $taskTitle)
@@ -126,24 +136,37 @@ public struct CreateTaskSheet: View {
 
     private var completionToggle: some View {
         Button {
-            withAnimation(.spring(response: 0.2)) { isCompleted.toggle() }
+            withAnimation(.smooth(duration: 0.2)) {
+                isCompleted.toggle()
+            }
         } label: {
             ZStack {
-                Circle().stroke(Color.white, lineWidth: 2).frame(width: 26, height: 26)
+                Circle()
+                    .stroke(Color.white, lineWidth: 2)
+                    .frame(width: 26, height: 26)
+
                 if isCompleted {
-                    Circle().fill(.white).frame(width: 26, height: 26)
-                    Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(Color(hex: tintHex))
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 26, height: 26)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color(hex: tintHex))
                 }
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(isCompleted ? "标记为未完成" : "标记为已完成")
     }
 
     private var durationPicker: some View {
         HStack(spacing: 4) {
-            ForEach(durations.indices, id: \.self) { index in
-                selectionButton(title: durations[index], isSelected: selectedDurationIndex == index) {
-                    selectedDurationIndex = index
+            ForEach(durationOptions) { option in
+                selectionButton(
+                    title: option.title,
+                    isSelected: selectedDurationMinutes == option.minutes
+                ) {
+                    selectedDurationMinutes = option.minutes
                 }
             }
         }
@@ -167,9 +190,9 @@ public struct CreateTaskSheet: View {
 
     private var recurrencePicker: some View {
         HStack(spacing: 4) {
-            ForEach(recurrences.indices, id: \.self) { index in
-                selectionButton(title: recurrences[index], isSelected: selectedRecurrenceIndex == index) {
-                    selectedRecurrenceIndex = index
+            ForEach(RecurrenceOption.allCases) { option in
+                selectionButton(title: option.title, isSelected: selectedRecurrence == option) {
+                    selectedRecurrence = option
                 }
             }
         }
@@ -178,34 +201,39 @@ public struct CreateTaskSheet: View {
     }
 
     @ViewBuilder private var recurrenceDetail: some View {
-        switch selectedRecurrenceIndex {
-        case 0:
+        switch selectedRecurrence {
+        case .once:
             dateRow(title: "执行日期", selection: $onceDate)
-        case 2:
+        case .daily:
+            EmptyView()
+        case .weekly:
             VStack(alignment: .leading, spacing: 12) {
                 Text("重复星期")
                     .font(.system(size: 16, weight: .semibold))
                 HStack(spacing: 8) {
-                    ForEach(weekdayOptions, id: \.0) { weekday, title in
-                        let selected = selectedWeekdays.contains(weekday)
+                    ForEach(weekdayOptions) { option in
+                        let isSelected = selectedWeekdays.contains(option.weekday)
                         Button {
-                            if selected { selectedWeekdays.remove(weekday) } else { selectedWeekdays.insert(weekday) }
+                            toggleWeekday(option.weekday)
                         } label: {
-                            Text(title)
+                            Text(option.title)
                                 .font(.system(size: 15, weight: .bold))
-                                .foregroundStyle(selected ? .white : .primary)
+                                .foregroundStyle(isSelected ? .white : .primary)
                                 .frame(maxWidth: .infinity, minHeight: 40)
-                                .background(selected ? Color(hex: tintHex) : Color.white, in: Circle())
+                                .background(isSelected ? Color(hex: tintHex) : Color.white, in: Circle())
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
-        case 3:
+        case .monthly:
             VStack(alignment: .leading, spacing: 12) {
                 Text("重复日期")
                     .font(.system(size: 16, weight: .semibold))
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7),
+                    spacing: 8
+                ) {
                     ForEach(1...31, id: \.self) { day in
                         monthDayButton(day: day, title: "\(day)")
                     }
@@ -214,39 +242,50 @@ public struct CreateTaskSheet: View {
                 .padding(12)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
-        case 4:
+        case .dateRange:
             VStack(spacing: 10) {
                 dateRow(title: "起始日期", selection: $rangeStartDate)
-                dateRow(title: "结束日期", selection: $rangeEndDate, range: rangeStartDate...Date.distantFuture)
+                dateRow(
+                    title: "结束日期",
+                    selection: $rangeEndDate,
+                    range: rangeStartDate...Date.distantFuture
+                )
             }
-        default:
-            EmptyView()
         }
     }
 
     private func monthDayButton(day: Int, title: String) -> some View {
-        let selected = selectedMonthDays.contains(day)
+        let isSelected = selectedMonthDays.contains(day)
         return Button {
-            if selected { selectedMonthDays.remove(day) } else { selectedMonthDays.insert(day) }
+            toggleMonthDay(day)
         } label: {
             Text(title)
                 .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(selected ? .white : .primary)
+                .foregroundStyle(isSelected ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 34)
-                .background(selected ? Color(hex: tintHex) : Color.black.opacity(0.04), in: Circle())
+                .background(isSelected ? Color(hex: tintHex) : Color.black.opacity(0.04), in: Circle())
         }
         .buttonStyle(.plain)
     }
 
-    private func dateRow(title: String, selection: Binding<Date>, range: ClosedRange<Date>? = nil) -> some View {
+    private func dateRow(
+        title: String,
+        selection: Binding<Date>,
+        range: ClosedRange<Date>? = nil
+    ) -> some View {
         HStack {
-            Text(title).font(.system(size: 16, weight: .semibold))
+            Text(title)
+                .font(.system(size: 16, weight: .semibold))
             Spacer()
             if let range {
-                DatePicker(title, selection: selection, in: range, displayedComponents: .date).labelsHidden().tint(Color(hex: tintHex))
+                DatePicker(title, selection: selection, in: range, displayedComponents: .date)
+                    .labelsHidden()
+                    .tint(Color(hex: tintHex))
             } else {
-                DatePicker(title, selection: selection, displayedComponents: .date).labelsHidden().tint(Color(hex: tintHex))
+                DatePicker(title, selection: selection, displayedComponents: .date)
+                    .labelsHidden()
+                    .tint(Color(hex: tintHex))
             }
         }
         .padding(.horizontal, 16)
@@ -254,9 +293,15 @@ public struct CreateTaskSheet: View {
         .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private func selectionButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func selectionButton(
+        title: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
         Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { action() }
+            withAnimation(.smooth(duration: 0.2)) {
+                action()
+            }
         } label: {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
@@ -268,20 +313,8 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
     }
 
-    // 5. 将创建任务按钮下移贴近底部
     private var createButton: some View {
-        Button {
-            engine.createNewTask(
-                title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                durationMinutes: durationMinutesMap[selectedDurationIndex],
-                recurrence: selectedRecurrenceRule,
-                startTime: storedTimeString,
-                iconSymbol: iconSymbol,
-                tintHex: tintHex,
-                initialStatus: isCompleted ? .done : .todo
-            )
-            dismiss()
-        } label: {
+        Button(action: createTask) {
             Text("创建任务")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(.white)
@@ -289,14 +322,14 @@ public struct CreateTaskSheet: View {
                 .frame(height: 56)
                 .background(Color(hex: tintHex), in: Capsule())
         }
-        .disabled(isTitleEmpty)
-        .opacity(isTitleEmpty ? 0.5 : 1)
+        .disabled(normalizedTaskTitle.isEmpty)
+        .opacity(normalizedTaskTitle.isEmpty ? 0.5 : 1)
         .padding(.horizontal, 20)
-        .padding(.bottom, 6) // 进一点下移贴近底边
+        .padding(.bottom, 6)
     }
 
-    private var isTitleEmpty: Bool {
-        taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private var normalizedTaskTitle: String {
+        taskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var timeString: String {
@@ -309,587 +342,92 @@ public struct CreateTaskSheet: View {
     }
 
     private var selectedRecurrenceRule: RecurrenceRule {
-        switch selectedRecurrenceIndex {
-        case 1: return .daily
-        case 2: return .weekly(weekdays: selectedWeekdays.isEmpty ? [.sun] : Array(selectedWeekdays))
-        case 3: return .monthlyMultiple(days: selectedMonthDays.isEmpty ? [Calendar.current.component(.day, from: rangeStartDate)] : selectedMonthDays.sorted())
-        case 4: return .dateRange(start: DateUtils.string(from: rangeStartDate), end: DateUtils.string(from: max(rangeStartDate, rangeEndDate)), autoArchive: nil)
-        default: return .once(date: DateUtils.string(from: onceDate))
-        }
-    }
-}
-
-private struct NoAnimButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
-    }
-}
-
-private struct AppearancePickerSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var iconSymbol: String
-    @Binding var tintHex: String
-    @State private var showsCustomColor = false
-    @State private var customColorDetent: PresentationDetent = .medium
-
-    @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
-
-    private let defaultPresets = [
-        "F49898", "FF9D73", "E0A800", "8CBD68",
-        "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
-        "000000"
-    ]
-
-    private var allPresets: [String] {
-        if customPresetsRaw.isEmpty {
-            return defaultPresets
-        } else {
-            let custom = customPresetsRaw.components(separatedBy: ",").filter { !$0.isEmpty }
-            return defaultPresets + custom
-        }
-    }
-
-    private let icons = [
-        "checklist", "alarm.fill", "book.fill", "calendar", "bell.fill",
-        "heart.fill", "star.fill", "figure.run", "fork.knife", "moon.fill",
-        "house.fill", "briefcase.fill", "flame.fill", "drop.fill", "leaf.fill"
-    ]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header：移除 NavigationBar，使用与其它 Sheet 100% 同款的标题与关闭按钮
-            HStack(alignment: .center) {
-                Text("颜色和图标")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.black)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .nativeLiquidGlass(in: Circle(), interactive: true)
-            }
-
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    // 动态预设色彩横向滚动条
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(allPresets, id: \.self) { color in
-                                let isSelected = tintHex.uppercased() == color.uppercased()
-                                Button {
-                                    var transaction = Transaction()
-                                    transaction.disablesAnimations = true
-                                    withTransaction(transaction) {
-                                        tintHex = color
-                                    }
-                                } label: {
-                                    ZStack {
-                                        if isSelected {
-                                            Circle()
-                                                .stroke(Color(hex: color), lineWidth: 2.5)
-                                                .frame(width: 42, height: 42)
-                                            Circle()
-                                                .fill(Color(hex: color))
-                                                .frame(width: 32, height: 32)
-                                        } else {
-                                            Circle()
-                                                .fill(Color(hex: color))
-                                                .frame(width: 38, height: 38)
-                                        }
-                                    }
-                                    .frame(width: 42, height: 42)
-                                }
-                                .buttonStyle(NoAnimButtonStyle())
-                            }
-
-                            Button {
-                                customColorDetent = .medium
-                                showsCustomColor = true
-                            } label: {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.black.opacity(0.06))
-                                        .frame(width: 38, height: 38)
-                                    Image(systemName: "ellipsis")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .buttonStyle(NoAnimButtonStyle())
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                    }
-                    .background(Color.black.opacity(0.04), in: Capsule())
-                    .clipShape(Capsule())
-
-                    // 图标网格
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 14) {
-                        ForEach(icons, id: \.self) { symbol in
-                            let isSelected = iconSymbol == symbol
-                            Button {
-                                var transaction = Transaction()
-                                transaction.disablesAnimations = true
-                                withTransaction(transaction) {
-                                    iconSymbol = symbol
-                                }
-                            } label: {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.black.opacity(0.05))
-
-                                    Circle()
-                                        .fill(Color(hex: tintHex))
-                                        .opacity(isSelected ? 1.0 : 0.0)
-
-                                    Image(systemName: symbol)
-                                        .font(.system(size: 20, weight: .semibold))
-                                        .foregroundStyle(isSelected ? .white : Color(hex: tintHex))
-                                }
-                                .frame(height: 52)
-                                .contentShape(Circle())
-                            }
-                            .buttonStyle(NoAnimButtonStyle())
-                        }
-                    }
-                    .padding(.top, 6)
-                }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .sheet(isPresented: $showsCustomColor) {
-            CustomColorSheet(
-                tintHex: $tintHex,
-                iconSymbol: iconSymbol,
-                presentationDetent: $customColorDetent
+        switch selectedRecurrence {
+        case .once:
+            return .once(date: DateUtils.string(from: onceDate))
+        case .daily:
+            return .daily
+        case .weekly:
+            return .weekly(weekdays: selectedWeekdays.isEmpty ? [.sun] : Array(selectedWeekdays))
+        case .monthly:
+            let fallbackDay = Calendar.current.component(.day, from: onceDate)
+            return .monthlyMultiple(days: selectedMonthDays.isEmpty ? [fallbackDay] : selectedMonthDays.sorted())
+        case .dateRange:
+            return .dateRange(
+                start: DateUtils.string(from: rangeStartDate),
+                end: DateUtils.string(from: max(rangeStartDate, rangeEndDate)),
+                autoArchive: nil
             )
-                .presentationDetents([.medium, .large], selection: $customColorDetent)
-                .presentationDragIndicator(.visible)
-        }
-    }
-}
-
-private struct CustomColorSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var tintHex: String
-    var iconSymbol: String = "checklist"
-    @Binding var presentationDetent: PresentationDetent
-
-    @State private var hue: Double = 0.0
-    @State private var saturation: Double = 0.75
-    @State private var brightness: Double = 0.95
-    @State private var hexInputText: String = ""
-    @State private var isEditingPresets: Bool = false
-    @State private var isProgrammaticUpdate: Bool = false
-    @FocusState private var isHexFieldFocused: Bool
-
-    @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
-    @State private var customPresets: [String] = []
-
-    private let defaultPresets = [
-        "F49898", "FF9D73", "E0A800", "8CBD68",
-        "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
-        "000000"
-    ]
-
-    private var allPresets: [String] {
-        defaultPresets + customPresets
-    }
-
-    var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            colorPickerContent
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .onAppear {
-            loadCustomPresets()
-            hexInputText = tintHex.uppercased()
-            syncHSBFromHex(tintHex)
         }
     }
 
-    private var colorPickerContent: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            // Header
-            HStack(alignment: .center) {
-                Text("选择颜色")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                HStack(spacing: 4) {
-                    Text("#")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color(red: 0.9, green: 0.4, blue: 0.4))
-                    
-                    TextField("HEX", text: $hexInputText)
-                        .font(.system(size: 20, weight: .bold, design: .monospaced))
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                        .frame(width: 90)
-                        .focused($isHexFieldFocused)
-                        .allowsHitTesting(presentationDetent == .large)
-                        .accessibilityHidden(presentationDetent != .large)
-                        .overlay {
-                            if presentationDetent != .large {
-                                Button(action: expandThenFocusHexField) {
-                                    Color.clear
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("编辑 HEX 颜色")
-                            }
-                        }
-                        .onChange(of: hexInputText) { _, newValue in
-                            guard !isProgrammaticUpdate else { return }
-                            let cleaned = newValue.trimmingCharacters(in: CharacterSet.alphanumerics.inverted).uppercased()
-                            if cleaned.count <= 6 { hexInputText = cleaned }
-                            if cleaned.count == 6 {
-                                tintHex = cleaned
-                                syncHSBFromHex(cleaned)
-                            }
-                        }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .overlay(alignment: .bottom) {
-                    Rectangle()
-                        .fill(Color.black.opacity(0.2))
-                        .frame(height: 1)
-                }
-
-                Spacer().frame(width: 8)
-
-                // 4. 与创建任务 Sheet 完全一致的关闭按钮
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.black)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .nativeLiquidGlass(in: Circle(), interactive: true)
-            }
-
-            // 单向驱动 Slider
-            ColorSpectrumSlider(hue: $hue) {
-                updateHexFromHSB()
-            }
-
-            ColorBrightnessSlider(hue: hue, saturation: $saturation, brightness: $brightness, currentColorHex: tintHex) {
-                updateHexFromHSB()
-            }
-
-            // 预设 Header
-            HStack {
-                Text("预设")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.primary)
-                
-                Spacer()
-
-                Button {
-                    withAnimation(.spring(response: 0.25)) {
-                        isEditingPresets.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: isEditingPresets ? "checkmark" : "star.fill")
-                            .font(.system(size: 12))
-                        Text(isEditingPresets ? "完成" : "编辑")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(isEditingPresets ? Color.black.opacity(0.12) : Color.black.opacity(0.05), in: Capsule())
-                    .foregroundStyle(.primary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.top, 4)
-
-            // 预设列表与指示图标 (一行 5 个)
-            HStack(alignment: .top, spacing: 16) {
-                // 左侧图标指示轴
-                ZStack {
-                    Rectangle()
-                        .fill(Color(hex: tintHex).opacity(0.3))
-                        .frame(width: 2, height: 125)
-
-                    Circle()
-                        .fill(Color(hex: tintHex))
-                        .frame(width: 50, height: 50)
-                        .shadow(color: Color(hex: tintHex).opacity(0.3), radius: 6, y: 3)
-                        .overlay {
-                            Image(systemName: iconSymbol)
-                                .font(.system(size: 22, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                }
-                .frame(width: 50)
-
-                // 右侧 5 列预设网格（添加 maxWidth: .infinity 解决挤压问题）
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 36), spacing: 8), count: 5), alignment: .leading, spacing: 14) {
-                    ForEach(Array(allPresets.enumerated()), id: \.offset) { index, colorHex in
-                        let isDefault = index < defaultPresets.count
-                        ZStack(alignment: .topTrailing) {
-                            Button {
-                                if !isEditingPresets {
-                                    tintHex = colorHex
-                                    hexInputText = colorHex
-                                    syncHSBFromHex(colorHex)
-                                }
-                            } label: {
-                                Circle()
-                                    .fill(Color(hex: colorHex))
-                                    .frame(width: 36, height: 36)
-                                    .overlay {
-                                        if tintHex.uppercased() == colorHex.uppercased() {
-                                            Circle()
-                                                .stroke(Color.white, lineWidth: 2.5)
-                                                .shadow(color: .black.opacity(0.2), radius: 2)
-                                        }
-                                    }
-                            }
-                            .buttonStyle(NoAnimButtonStyle())
-
-                            if isEditingPresets && !isDefault {
-                                Button {
-                                    withAnimation(.spring(response: 0.25)) {
-                                        removeCustomPreset(colorHex)
-                                    }
-                                } label: {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.red)
-                                            .frame(width: 18, height: 18)
-                                        Image(systemName: "minus")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundStyle(.white)
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .offset(x: 5, y: -5)
-                                .zIndex(10)
-                            }
-                        }
-                        .frame(maxWidth: .infinity) // 单个 Cell 内部居中
-                        .zIndex(isEditingPresets && !isDefault ? 10 : 1)
-                    }
-
-                    // 加号新增预设按钮
-                    Button {
-                        withAnimation(.spring(response: 0.25)) {
-                            addCustomPreset(tintHex)
-                        }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: tintHex).opacity(0.15))
-                                .frame(width: 36, height: 36)
-                            Circle()
-                                .stroke(Color(hex: tintHex), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "plus")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(Color(hex: tintHex))
-                        }
-                    }
-                    .buttonStyle(NoAnimButtonStyle())
-                    .frame(maxWidth: .infinity)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading) // 核心：强制网格撑满右侧空间
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
-        .padding(.bottom, 24)
+    private func initializeDates() {
+        guard let selectedDate = DateUtils.date(from: engine.selectedDateString) else { return }
+        onceDate = selectedDate
+        rangeStartDate = selectedDate
+        rangeEndDate = selectedDate
     }
 
-    private func expandThenFocusHexField() {
-        withAnimation(.smooth(duration: 0.25), completionCriteria: .logicallyComplete) {
-            presentationDetent = .large
-        } completion: {
-            isHexFieldFocused = true
-        }
+    private func createTask() {
+        engine.createNewTask(
+            title: normalizedTaskTitle,
+            durationMinutes: selectedDurationMinutes,
+            recurrence: selectedRecurrenceRule,
+            startTime: storedTimeString,
+            iconSymbol: iconSymbol,
+            tintHex: tintHex,
+            initialStatus: isCompleted ? .done : .todo
+        )
+        dismiss()
     }
 
-    private func loadCustomPresets() {
-        if customPresetsRaw.isEmpty {
-            customPresets = []
+    private func toggleWeekday(_ weekday: Weekday) {
+        if selectedWeekdays.contains(weekday) {
+            selectedWeekdays.remove(weekday)
         } else {
-            customPresets = customPresetsRaw.components(separatedBy: ",").filter { !$0.isEmpty }
+            selectedWeekdays.insert(weekday)
         }
     }
 
-    private func saveCustomPresets() {
-        customPresetsRaw = customPresets.joined(separator: ",")
-    }
-
-    private func addCustomPreset(_ hex: String) {
-        let cleanHex = hex.uppercased()
-        guard !allPresets.contains(cleanHex) else { return }
-        customPresets.append(cleanHex)
-        saveCustomPresets()
-    }
-
-    private func removeCustomPreset(_ hex: String) {
-        customPresets.removeAll { $0.uppercased() == hex.uppercased() }
-        saveCustomPresets()
-    }
-
-    private func syncHSBFromHex(_ hex: String) {
-        if let hsb = hexToHSB(hex) {
-            if hsb.s > 0.05 {
-                self.hue = hsb.h
-            }
-            self.saturation = hsb.s
-            self.brightness = hsb.b
-        }
-    }
-
-    private func updateHexFromHSB() {
-        isProgrammaticUpdate = true
-        let newHex = hsbToHex(h: hue, s: saturation, b: brightness)
-        self.tintHex = newHex
-        self.hexInputText = newHex
-        DispatchQueue.main.async {
-            isProgrammaticUpdate = false
+    private func toggleMonthDay(_ day: Int) {
+        if selectedMonthDays.contains(day) {
+            selectedMonthDays.remove(day)
+        } else {
+            selectedMonthDays.insert(day)
         }
     }
 }
 
-private struct ColorSpectrumSlider: View {
-    @Binding var hue: Double
-    var onChange: () -> Void
+private struct DurationOption: Identifiable {
+    let title: String
+    let minutes: Int
 
-    var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let handleSize: CGFloat = 32
-            let travelWidth = max(1, width - handleSize)
-            let currentX = CGFloat(hue) * travelWidth
+    var id: Int { minutes }
+}
 
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 32)
+private struct WeekdayOption: Identifiable {
+    let weekday: Weekday
+    let title: String
 
-                ZStack {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: handleSize, height: handleSize)
-                        .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
-                    Circle()
-                        .fill(Color(hue: hue, saturation: 1.0, brightness: 1.0))
-                        .frame(width: handleSize - 6, height: handleSize - 6)
-                }
-                .offset(x: currentX)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let newX = max(0, min(travelWidth, value.location.x - handleSize / 2))
-                            hue = Double(newX / travelWidth)
-                            onChange()
-                        }
-                )
-            }
+    var id: Weekday { weekday }
+}
+
+private enum RecurrenceOption: CaseIterable, Hashable, Identifiable {
+    case once
+    case daily
+    case weekly
+    case monthly
+    case dateRange
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .once: "仅一次"
+        case .daily: "每日"
+        case .weekly: "每周"
+        case .monthly: "每月"
+        case .dateRange: "日期"
         }
-        .frame(height: 32)
-    }
-}
-
-private struct ColorBrightnessSlider: View {
-    var hue: Double
-    @Binding var saturation: Double
-    @Binding var brightness: Double
-    var currentColorHex: String
-    var onChange: () -> Void
-
-    var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            let handleSize: CGFloat = 32
-            let travelWidth = max(1, width - handleSize)
-            let currentX = CGFloat(brightness) * travelWidth
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [.black, Color(hue: hue, saturation: max(0.4, saturation), brightness: 1.0)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 32)
-
-                ZStack {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: handleSize, height: handleSize)
-                        .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
-                    Circle()
-                        .fill(Color(hex: currentColorHex))
-                        .frame(width: handleSize - 6, height: handleSize - 6)
-                }
-                .offset(x: currentX)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let newX = max(0, min(travelWidth, value.location.x - handleSize / 2))
-                            brightness = Double(newX / travelWidth)
-                            onChange()
-                        }
-                )
-            }
-        }
-        .frame(height: 32)
-    }
-}
-
-private func hexToHSB(_ hex: String) -> (h: Double, s: Double, b: Double)? {
-    let cleanHex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-    guard cleanHex.count == 6, let val = UInt64(cleanHex, radix: 16) else { return nil }
-    let r = CGFloat((val >> 16) & 0xFF) / 255.0
-    let g = CGFloat((val >> 8) & 0xFF) / 255.0
-    let b = CGFloat((val) & 0xFF) / 255.0
-    let uiColor = UIColor(red: r, green: g, blue: b, alpha: 1.0)
-    var h: CGFloat = 0, s: CGFloat = 0, br: CGFloat = 0, a: CGFloat = 0
-    _ = uiColor.getHue(&h, saturation: &s, brightness: &br, alpha: &a)
-    return (Double(h), Double(s), Double(br))
-}
-
-private func hsbToHex(h: Double, s: Double, b: Double) -> String {
-    let uiColor = UIColor(hue: CGFloat(h), saturation: CGFloat(s), brightness: CGFloat(b), alpha: 1.0)
-    var r: CGFloat = 0, g: CGFloat = 0, bl: CGFloat = 0, a: CGFloat = 0
-    _ = uiColor.getRed(&r, green: &g, blue: &bl, alpha: &a)
-    let ri = Int(round(r * 255.0))
-    let gi = Int(round(g * 255.0))
-    let bi = Int(round(bl * 255.0))
-    return String(format: "%02X%02X%02X", max(0, min(255, ri)), max(0, min(255, gi)), max(0, min(255, bi)))
-}
-
-private extension Color {
-    init(hex: String) {
-        let value = UInt64(hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted), radix: 16) ?? 0xEE8C8C
-        self.init(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
     }
 }
