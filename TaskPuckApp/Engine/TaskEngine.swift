@@ -94,7 +94,11 @@ public final class TaskEngine {
                 if weekdays.contains(weekday(for: weekdayIndex)) { return true }
             case .monthly(let day):
                 let targetDateObject = DateUtils.date(from: targetDate) ?? Date()
-                if DateUtils.calendar.component(.day, from: targetDateObject) == day { return true }
+                let targetDay = DateUtils.calendar.component(.day, from: targetDateObject)
+                if day == 0,
+                   let lastDay = DateUtils.calendar.range(of: .day, in: .month, for: targetDateObject)?.count,
+                   targetDay == lastDay { return true }
+                if targetDay == day { return true }
             case .dateRange(let start, let end, _):
                 if targetDate >= start && targetDate <= end { return true }
             }
@@ -196,6 +200,8 @@ public final class TaskEngine {
         durationMinutes: Int,
         recurrence: RecurrenceRule,
         startTime: String? = nil,
+        iconSymbol: String = "at",
+        tintHex: String = "EE8C8C",
         initialStatus: InstanceStatus = .todo
     ) {
         if isReadOnly {
@@ -206,17 +212,19 @@ public final class TaskEngine {
         let defaultPlacement = startTime != nil ? DefaultPlacement(startTime: startTime!, duration: durationMinutes) : nil
         let newTask = TaskEntity(
             title: title,
-            iconSymbol: "at",
+            iconSymbol: iconSymbol,
+            tintHex: tintHex,
             priority: .urgent,
             recurrenceRules: [recurrence],
             defaultPlacement: defaultPlacement
         )
         modelContext.insert(newTask)
 
+        let initialDate = firstOccurrence(for: recurrence, from: selectedDateString)
         let newInstance = TaskInstanceEntity(
             taskId: newTask.id,
-            originalDate: selectedDateString,
-            currentDate: selectedDateString,
+            originalDate: initialDate,
+            currentDate: initialDate,
             status: initialStatus
         )
         modelContext.insert(newInstance)
@@ -228,6 +236,29 @@ public final class TaskEngine {
         }
 
         try? modelContext.save()
+    }
+
+    private func firstOccurrence(for rule: RecurrenceRule, from dateString: String) -> String {
+        if case .once(let date) = rule { return date }
+        if case .dateRange(let start, let end, _) = rule {
+            if dateString < start { return start }
+            if dateString > end { return start }
+            return dateString
+        }
+
+        guard let startDate = DateUtils.date(from: dateString) else { return dateString }
+        for offset in 0...366 {
+            guard let candidate = DateUtils.calendar.date(byAdding: .day, value: offset, to: startDate) else { continue }
+            let candidateString = DateUtils.string(from: candidate)
+            if matchesRecurrence(
+                rules: [rule],
+                targetDate: candidateString,
+                weekdayIndex: DateUtils.calendar.component(.weekday, from: candidate)
+            ) {
+                return candidateString
+            }
+        }
+        return dateString
     }
 
 }

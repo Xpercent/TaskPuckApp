@@ -44,7 +44,7 @@ public enum RecurrenceRule: Codable, Equatable {
         case .daily: return "每日"
         case .weekly: return "每周"
         case .monthly: return "每月"
-        case .dateRange: return "每月"
+        case .dateRange: return "日期"
         }
     }
 }
@@ -66,6 +66,7 @@ public final class TaskEntity {
     @Attribute(.unique) public var id: String
     public var title: String
     public var iconSymbol: String
+    public var tintHex: String = "EE8C8C"
     public var taskDescription: String?
     public var priorityRaw: String
     public var recurrenceRulesData: Data
@@ -101,6 +102,7 @@ public final class TaskEntity {
         id: String = UUID().uuidString,
         title: String,
         iconSymbol: String = "at",
+        tintHex: String = "EE8C8C",
         taskDescription: String? = nil,
         priority: Priority = .medium,
         recurrenceRules: [RecurrenceRule] = [.daily],
@@ -111,6 +113,7 @@ public final class TaskEntity {
         self.id = id
         self.title = title
         self.iconSymbol = iconSymbol
+        self.tintHex = tintHex
         self.taskDescription = taskDescription
         self.priorityRaw = priority.rawValue
         self.recurrenceRulesData = (try? JSONEncoder().encode(recurrenceRules)) ?? Data()

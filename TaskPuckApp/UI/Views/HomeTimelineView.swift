@@ -136,13 +136,7 @@ struct InteractiveTimelineRow: View {
 
     // 根据图标类型返回对应的主题背景色
     private var iconBgColor: Color {
-        if item.task.iconSymbol == "alarm.fill" {
-            return Color(red: 0.93, green: 0.55, blue: 0.55)
-        } else if item.task.iconSymbol == "moon.fill" {
-            return Color(red: 0.35, green: 0.50, blue: 0.65)
-        } else {
-            return Color(red: 0.93, green: 0.62, blue: 0.62)
-        }
+        Color(hex: item.task.tintHex)
     }
 
     // 根据当前时间计算任务进度 (0.0 ~ 1.0)
@@ -254,11 +248,7 @@ struct InteractiveTimelineRow: View {
                     // 外圈圆环
                     Circle()
                         .stroke(
-                            isDone
-                                ? Color(red: 0.93, green: 0.55, blue: 0.55)
-                                : (item.task.iconSymbol == "moon.fill"
-                                    ? Color(red: 0.35, green: 0.50, blue: 0.65)
-                                    : Color(red: 0.93, green: 0.55, blue: 0.55)),
+                            iconBgColor,
                             lineWidth: 3
                         )
                         .frame(width: 20, height: 20)
@@ -287,5 +277,12 @@ struct InteractiveTimelineRow: View {
               let minute = Int(parts[1]) else { return nil }
 
         return Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: baseDate)
+    }
+}
+
+private extension Color {
+    init(hex: String) {
+        let value = UInt64(hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted), radix: 16) ?? 0xEE8C8C
+        self.init(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
     }
 }
