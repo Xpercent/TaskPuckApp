@@ -331,6 +331,7 @@ private struct AppearancePickerSheet: View {
     @Binding var iconSymbol: String
     @Binding var tintHex: String
     @State private var showsCustomColor = false
+    @State private var customColorDetent: PresentationDetent = .medium
 
     @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
 
@@ -409,7 +410,10 @@ private struct AppearancePickerSheet: View {
                                 .buttonStyle(NoAnimButtonStyle())
                             }
 
-                            Button { showsCustomColor = true } label: {
+                            Button {
+                                customColorDetent = .medium
+                                showsCustomColor = true
+                            } label: {
                                 ZStack {
                                     Circle()
                                         .fill(Color.black.opacity(0.06))
@@ -463,8 +467,12 @@ private struct AppearancePickerSheet: View {
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .sheet(isPresented: $showsCustomColor) {
-            CustomColorSheet(tintHex: $tintHex, iconSymbol: iconSymbol)
-                .presentationDetents([.medium, .large])
+            CustomColorSheet(
+                tintHex: $tintHex,
+                iconSymbol: iconSymbol,
+                presentationDetent: $customColorDetent
+            )
+                .presentationDetents([.medium, .large], selection: $customColorDetent)
                 .presentationDragIndicator(.visible)
         }
     }
@@ -474,6 +482,7 @@ private struct CustomColorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var tintHex: String
     var iconSymbol: String = "checklist"
+    @Binding var presentationDetent: PresentationDetent
 
     @State private var hue: Double = 0.0
     @State private var saturation: Double = 0.75
@@ -481,6 +490,7 @@ private struct CustomColorSheet: View {
     @State private var hexInputText: String = ""
     @State private var isEditingPresets: Bool = false
     @State private var isProgrammaticUpdate: Bool = false
+    @FocusState private var isHexFieldFocused: Bool
 
     @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
     @State private var customPresets: [String] = []
@@ -496,6 +506,18 @@ private struct CustomColorSheet: View {
     }
 
     var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            colorPickerContent
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .onAppear {
+            loadCustomPresets()
+            hexInputText = tintHex.uppercased()
+            syncHSBFromHex(tintHex)
+        }
+    }
+
+    private var colorPickerContent: some View {
         VStack(alignment: .leading, spacing: 22) {
             // Header
             HStack(alignment: .center) {
@@ -515,6 +537,19 @@ private struct CustomColorSheet: View {
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .frame(width: 90)
+                        .focused($isHexFieldFocused)
+                        .allowsHitTesting(presentationDetent == .large)
+                        .accessibilityHidden(presentationDetent != .large)
+                        .overlay {
+                            if presentationDetent != .large {
+                                Button(action: expandThenFocusHexField) {
+                                    Color.clear
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("编辑 HEX 颜色")
+                            }
+                        }
                         .onChange(of: hexInputText) { _, newValue in
                             guard !isProgrammaticUpdate else { return }
                             let cleaned = newValue.trimmingCharacters(in: CharacterSet.alphanumerics.inverted).uppercased()
@@ -676,16 +711,17 @@ private struct CustomColorSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading) // 核心：强制网格撑满右侧空间
             }
-
-            Spacer()
         }
         .padding(.horizontal, 24)
         .padding(.top, 24)
-        .ignoresSafeArea(.keyboard) // 关键：禁用键盘自动避让，防止 Header 冲出 Sheet 顶部
-        .onAppear {
-            loadCustomPresets()
-            hexInputText = tintHex.uppercased()
-            syncHSBFromHex(tintHex)
+        .padding(.bottom, 24)
+    }
+
+    private func expandThenFocusHexField() {
+        withAnimation(.smooth(duration: 0.25), completionCriteria: .logicallyComplete) {
+            presentationDetent = .large
+        } completion: {
+            isHexFieldFocused = true
         }
     }
 
