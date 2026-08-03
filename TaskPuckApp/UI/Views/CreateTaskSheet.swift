@@ -373,6 +373,7 @@ private struct AppearancePickerSheet: View {
                         .padding(.vertical, 8)
                     }
                     .background(Color.black.opacity(0.04), in: Capsule())
+                    .clipShape(Capsule()) // 彻底裁切溢出胶囊框外的色块
 
                     // 每行 5 个精简图标网格
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 14) {
@@ -386,8 +387,15 @@ private struct AppearancePickerSheet: View {
                                 }
                             } label: {
                                 ZStack {
+                                    // 1. 固定存在的灰色底层圈，绝不消失
                                     Circle()
-                                        .fill(isSelected ? Color(hex: tintHex) : Color.black.opacity(0.05))
+                                        .fill(Color.black.opacity(0.05))
+
+                                    // 2. 选中的主题色覆盖圈，通过 opacity 平滑显隐
+                                    Circle()
+                                        .fill(Color(hex: tintHex))
+                                        .opacity(isSelected ? 1.0 : 0.0)
+
                                     Image(systemName: symbol)
                                         .font(.system(size: 20, weight: .semibold))
                                         .foregroundStyle(isSelected ? .white : Color(hex: tintHex))
@@ -403,15 +411,18 @@ private struct AppearancePickerSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
+            // 1. AppearancePickerSheet 右上角关闭按钮：
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.primary)
-                            .frame(width: 30, height: 30)
-                            .background(Color.black.opacity(0.05), in: Circle())
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.black)
+                            .frame(width: 38, height: 38)
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(.plain)
+                    .nativeLiquidGlass(in: Circle(), interactive: true)
                 }
             }
             .sheet(isPresented: $showsCustomColor) {
@@ -479,14 +490,16 @@ private struct CustomColorSheet: View {
 
                 Spacer().frame(width: 12)
 
+                // 2. CustomColorSheet 右上角关闭按钮：
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .frame(width: 36, height: 36)
-                        .background(Color.black.opacity(0.06), in: Circle())
+                        .foregroundStyle(.black)
+                        .frame(width: 38, height: 38)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .nativeLiquidGlass(in: Circle(), interactive: true)
             }
 
             // Slider 1: 彩虹 Hue 色彩光谱条
@@ -592,6 +605,7 @@ private struct CustomColorSheet: View {
 
 private struct ColorSpectrumSlider: View {
     @Binding var hue: Double
+    var currentColorHex: String
     var onChange: () -> Void
 
     var body: some View {
@@ -618,7 +632,7 @@ private struct ColorSpectrumSlider: View {
                         .frame(width: handleSize, height: handleSize)
                         .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
                     Circle()
-                        .fill(Color(hue: hue, saturation: 1.0, brightness: 1.0))
+                        .fill(Color(hex: currentColorHex))
                         .frame(width: handleSize - 6, height: handleSize - 6)
                 }
                 .offset(x: currentX)
@@ -640,6 +654,7 @@ private struct ColorBrightnessSlider: View {
     var hue: Double
     @Binding var saturation: Double
     @Binding var brightness: Double
+    var currentColorHex: String
     var onChange: () -> Void
 
     var body: some View {
@@ -653,7 +668,7 @@ private struct ColorBrightnessSlider: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [.black, Color(hue: hue, saturation: 1.0, brightness: 1.0)],
+                            colors: [.black, Color(hue: hue, saturation: max(0.5, saturation), brightness: 1.0)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -666,7 +681,7 @@ private struct ColorBrightnessSlider: View {
                         .frame(width: handleSize, height: handleSize)
                         .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
                     Circle()
-                        .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
+                        .fill(Color(hex: currentColorHex))
                         .frame(width: handleSize - 6, height: handleSize - 6)
                 }
                 .offset(x: currentX)
@@ -675,7 +690,6 @@ private struct ColorBrightnessSlider: View {
                         .onChanged { value in
                             let newX = max(0, min(travelWidth, value.location.x - handleSize / 2))
                             brightness = Double(newX / travelWidth)
-                            saturation = max(0.4, brightness)
                             onChange()
                         }
                 )
@@ -685,55 +699,29 @@ private struct ColorBrightnessSlider: View {
     }
 }
 
-// 纯 Swift 算术转换（零外部动态库与反射依赖）
+// 基于 UIColor 的精准 HSB/RGB 转换函数
 private func hexToHSB(_ hex: String) -> (h: Double, s: Double, b: Double)? {
     let cleanHex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
     guard cleanHex.count == 6, let val = UInt64(cleanHex, radix: 16) else { return nil }
-    let r = Double((val >> 16) & 0xFF) / 255.0
-    let g = Double((val >> 8) & 0xFF) / 255.0
-    let b = Double(val & 0xFF) / 255.0
-
-    let maxV = max(r, max(g, b))
-    let minV = min(r, min(g, b))
-    let delta = maxV - minV
-
-    var h: Double = 0
-    if delta > 0 {
-        if maxV == r {
-            h = (g - b) / delta
-            if h < 0 { h += 6 }
-        } else if maxV == g {
-            h = (b - r) / delta + 2
-        } else {
-            h = (r - g) / delta + 4
-        }
-        h /= 6.0
+    let r = CGFloat((val >> 16) & 0xFF) / 255.0
+    let g = CGFloat((val >> 8) & 0xFF) / 255.0
+    let b = CGFloat((val) & 0xFF) / 255.0
+    let uiColor = UIColor(red: r, green: g, blue: b, alpha: 1.0)
+    var h: CGFloat = 0, s: CGFloat = 0, br: CGFloat = 0, a: CGFloat = 0
+    if uiColor.getHue(&h, saturation: &s, brightness: &br, alpha: &a) {
+        return (Double(h), Double(s), Double(br))
     }
-
-    let s = maxV == 0 ? 0 : delta / maxV
-    let v = maxV
-    return (h, s, v)
+    return nil
 }
 
 private func hsbToHex(h: Double, s: Double, b: Double) -> String {
-    let hDeg = h * 360.0
-    let c = b * s
-    let x = c * (1.0 - abs((hDeg / 60.0).truncatingRemainder(dividingBy: 2) - 1.0))
-    let m = b - c
-
-    var r1 = 0.0, g1 = 0.0, b1 = 0.0
-    if hDeg < 60 { r1 = c; g1 = x; b1 = 0 }
-    else if hDeg < 120 { r1 = x; g1 = c; b1 = 0 }
-    else if hDeg < 180 { r1 = 0; g1 = c; b1 = x }
-    else if hDeg < 240 { r1 = 0; g1 = x; b1 = c }
-    else if hDeg < 300 { r1 = x; g1 = 0; b1 = c }
-    else { r1 = c; g1 = 0; b1 = x }
-
-    let r = Int(round((r1 + m) * 255.0))
-    let g = Int(round((g1 + m) * 255.0))
-    let bl = Int(round((b1 + m) * 255.0))
-
-    return String(format: "%02X%02X%02X", max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, bl)))
+    let uiColor = UIColor(hue: CGFloat(h), saturation: CGFloat(s), brightness: CGFloat(b), alpha: 1.0)
+    var r: CGFloat = 0, g: CGFloat = 0, bl: CGFloat = 0, a: CGFloat = 0
+    uiColor.getRed(&r, green: &g, blue: &bl, alpha: &a)
+    let ri = Int(round(r * 255.0))
+    let gi = Int(round(g * 255.0))
+    let bi = Int(round(bl * 255.0))
+    return String(format: "%02X%02X%02X", max(0, min(255, ri)), max(0, min(255, gi)), max(0, min(255, bi)))
 }
 
 private extension Color {
