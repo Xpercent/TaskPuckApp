@@ -13,7 +13,7 @@ public struct CreateTaskSheet: View {
     @State private var rangeStartDate = Date()
     @State private var rangeEndDate = Date()
     @State private var selectedWeekdays: Set<Weekday> = []
-    @State private var selectedMonthDay = Calendar.current.component(.day, from: Date())
+    @State private var selectedMonthDays: Set<Int> = []
     @State private var isCompleted = false
     @State private var iconSymbol = "checklist"
     @State private var tintHex = "EE8C8C"
@@ -40,6 +40,13 @@ public struct CreateTaskSheet: View {
             .background(Color(red: 0.96, green: 0.96, blue: 0.97))
         }
         .ignoresSafeArea()
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onAppear {
+            guard let selectedDate = DateUtils.date(from: engine.selectedDateString) else { return }
+            onceDate = selectedDate
+            rangeStartDate = selectedDate
+            rangeEndDate = selectedDate
+        }
         .sheet(isPresented: $showsAppearancePicker) {
             AppearancePickerSheet(iconSymbol: $iconSymbol, tintHex: $tintHex)
                 .presentationDetents([.medium, .large])
@@ -178,13 +185,13 @@ public struct CreateTaskSheet: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("重复日期")
                     .font(.system(size: 16, weight: .semibold))
-                Picker("重复日期", selection: $selectedMonthDay) {
-                    ForEach(1...31, id: \.self) { day in Text("\(day)号").tag(day) }
-                    Text("最后一天").tag(0)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
+                    ForEach(1...31, id: \.self) { day in
+                        monthDayButton(day: day, title: "\(day)")
+                    }
+                    monthDayButton(day: 0, title: "末")
                 }
-                .pickerStyle(.wheel)
-                .frame(height: 116)
-                .clipped()
+                .padding(12)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         case 4:
@@ -195,6 +202,21 @@ public struct CreateTaskSheet: View {
         default:
             EmptyView()
         }
+    }
+
+    private func monthDayButton(day: Int, title: String) -> some View {
+        let selected = selectedMonthDays.contains(day)
+        return Button {
+            if selected { selectedMonthDays.remove(day) } else { selectedMonthDays.insert(day) }
+        } label: {
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(selected ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 34)
+                .background(selected ? Color(hex: tintHex) : Color.black.opacity(0.04), in: Circle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func dateRow(title: String, selection: Binding<Date>, range: ClosedRange<Date>? = nil) -> some View {
@@ -264,7 +286,7 @@ public struct CreateTaskSheet: View {
         switch selectedRecurrenceIndex {
         case 1: return .daily
         case 2: return .weekly(weekdays: selectedWeekdays.isEmpty ? [.sun] : Array(selectedWeekdays))
-        case 3: return .monthly(day: selectedMonthDay)
+        case 3: return .monthlyMultiple(days: selectedMonthDays.isEmpty ? [Calendar.current.component(.day, from: rangeStartDate)] : selectedMonthDays.sorted())
         case 4: return .dateRange(start: DateUtils.string(from: rangeStartDate), end: DateUtils.string(from: max(rangeStartDate, rangeEndDate)), autoArchive: nil)
         default: return .once(date: DateUtils.string(from: onceDate))
         }
@@ -285,31 +307,46 @@ private struct AppearancePickerSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Text("颜色和图标").font(.system(size: 30, weight: .bold, design: .rounded))
-                    HStack(spacing: 14) {
-                        ForEach(colors, id: \.self) { color in
-                            colorSwatch(color)
-                        }
-                        Button { showsCustomColor = true } label: {
-                            Image(systemName: "ellipsis").font(.system(size: 18, weight: .bold)).foregroundStyle(.primary).frame(width: 50, height: 50).background(Color.black.opacity(0.05), in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 16)], spacing: 16) {
-                        ForEach(icons, id: \.self) { symbol in
-                            Button { iconSymbol = symbol } label: {
-                                Image(systemName: symbol)
-                                    .font(.system(size: 25, weight: .semibold))
-                                    .foregroundStyle(iconSymbol == symbol ? .white : Color(hex: tintHex))
-                                    .frame(width: 64, height: 64)
-                                    .background(iconSymbol == symbol ? Color(hex: tintHex) : Color.black.opacity(0.05), in: Circle())
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 14) {
+                            ForEach(colors, id: \.self) { color in
+                                colorSwatch(color)
+                            }
+                            Button { showsCustomColor = true } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(.primary)
+                                    .frame(width: 50, height: 50)
+                                    .background(Color.black.opacity(0.05), in: Circle())
                             }
                             .buttonStyle(.plain)
                         }
                     }
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), spacing: 16) {
+                        ForEach(icons, id: \.self) { symbol in
+                            Button { iconSymbol = symbol } label: {
+                                ZStack {
+                                    Circle().fill(iconSymbol == symbol ? Color(hex: tintHex) : Color.black.opacity(0.05))
+                                    Image(systemName: symbol)
+                                        .font(.system(size: 25, weight: .semibold))
+                                        .foregroundStyle(iconSymbol == symbol ? .white : Color(hex: tintHex))
+                                }
+                                .frame(height: 64)
+                                .contentShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .transaction { $0.animation = nil }
+                        }
+                    }
                 }
-                .padding(24)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 24)
             }
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark").fontWeight(.bold) } } }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: { Image(systemName: "xmark").fontWeight(.bold) }
+                }
+            }
             .sheet(isPresented: $showsCustomColor) {
                 CustomColorSheet(tintHex: $tintHex)
                     .presentationDetents([.medium])
@@ -344,21 +381,15 @@ private struct CustomColorSheet: View {
                 Text("#").foregroundStyle(Color(hue: hue, saturation: 0.75, brightness: brightness)).font(.title.bold())
                 TextField("HEX", text: $tintHex).textInputAutocapitalization(.characters).autocorrectionDisabled().font(.title2.monospaced()).onChange(of: tintHex) { _, newValue in if newValue.count > 6 { tintHex = String(newValue.prefix(6)) } }
             }
-            colorSlider(value: $hue, gradient: LinearGradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red], startPoint: .leading, endPoint: .trailing))
-            colorSlider(value: $brightness, gradient: LinearGradient(colors: [.black, Color(hue: hue, saturation: 0.8, brightness: 1)], startPoint: .leading, endPoint: .trailing))
+            ColorBandSlider(value: $hue, gradient: LinearGradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red], startPoint: .leading, endPoint: .trailing))
+            ColorBandSlider(value: $brightness, gradient: LinearGradient(colors: [.black, Color(hue: hue, saturation: 0.8, brightness: 1)], startPoint: .leading, endPoint: .trailing))
             Spacer()
         }
-        .padding(24)
+        .padding(.horizontal, 28)
+        .padding(.vertical, 24)
         .onAppear { updateSlidersFromHex() }
         .onChange(of: hue) { _, _ in updateHexFromSliders() }
         .onChange(of: brightness) { _, _ in updateHexFromSliders() }
-    }
-
-    private func colorSlider(value: Binding<Double>, gradient: LinearGradient) -> some View {
-        ZStack {
-            Capsule().fill(gradient).frame(height: 40)
-            Slider(value: value, in: 0...1).tint(.clear).padding(.horizontal, 6)
-        }
     }
 
     private func updateSlidersFromHex() {
@@ -372,6 +403,36 @@ private struct CustomColorSheet: View {
         var red = CGFloat.zero, green = CGFloat.zero, blue = CGFloat.zero, alpha = CGFloat.zero
         uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
         tintHex = String(format: "%02lX%02lX%02lX", red * 255, green * 255, blue * 255)
+    }
+}
+
+private struct ColorBandSlider: View {
+    @Binding var value: Double
+    let gradient: LinearGradient
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            ZStack(alignment: .leading) {
+                Capsule().fill(gradient).frame(height: 40)
+                Circle()
+                    .fill(.white)
+                    .frame(width: 30, height: 30)
+                    .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
+                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                    .offset(x: max(0, min(width - 30, value * (width - 30))))
+            }
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        guard width > 30 else { return }
+                        value = min(1, max(0, (gesture.location.x - 15) / (width - 30)))
+                    }
+            )
+        }
+        .frame(height: 40)
     }
 }
 

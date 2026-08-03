@@ -99,6 +99,11 @@ public final class TaskEngine {
                    let lastDay = DateUtils.calendar.range(of: .day, in: .month, for: targetDateObject)?.count,
                    targetDay == lastDay { return true }
                 if targetDay == day { return true }
+            case .monthlyMultiple(let days):
+                let targetDateObject = DateUtils.date(from: targetDate) ?? Date()
+                let targetDay = DateUtils.calendar.component(.day, from: targetDateObject)
+                let isLastDay = DateUtils.calendar.range(of: .day, in: .month, for: targetDateObject)?.count == targetDay
+                if days.contains(targetDay) || (days.contains(0) && isLastDay) { return true }
             case .dateRange(let start, let end, _):
                 if targetDate >= start && targetDate <= end { return true }
             }
