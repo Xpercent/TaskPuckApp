@@ -151,17 +151,23 @@ private struct ManagedTaskRow: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(item.task.title)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.primary)
-                            .strikethrough(item.instance?.status == .done, color: .secondary)
-                        if let placementText {
-                            Text(placementText)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("无开始时间")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(.secondary)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle((item.instance?.status == .done) ? Color.gray.opacity(0.5) : Color(red: 0.15, green: 0.15, blue: 0.2))
+                            .overlay(alignment: .leading) {
+                                GeometryReader { geo in
+                                    let isDone = item.instance?.status == .done
+                                    Rectangle()
+                                        .fill(Color.gray.opacity(0.6))
+                                        .frame(width: isDone ? geo.size.width : 0, height: 2)
+                                        .frame(maxHeight: .infinity, alignment: .center)
+                                        .animation(.easeInOut(duration: 0.35), value: isDone)
+                                }
+                        }
+                        if let placement = item.placement {
+                            let duration = DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
+                            Text("\(placement.startTime) - \(placement.endTime) (\(duration)分钟)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.gray.opacity(0.8))
                         }
                     }
 

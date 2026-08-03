@@ -405,7 +405,7 @@ public struct CreateTaskSheet: View {
         return Button(action: action) {
             Text(title)
                 .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(isDisabled ? Color(uiColor: .systemGray4) : .white)
+                .foregroundStyle(isDisabled ? Color.white.opacity(0.7) : .white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
                 .background(
