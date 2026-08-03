@@ -165,7 +165,7 @@ public struct CreateTaskSheet: View {
 
                 if isCompleted {
                     Circle()
-                        .fill(Color(hex: item.task.tintHex))
+                        .fill(Color(hex: task.tintHex))
                         .frame(width: 26, height: 26)
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
@@ -405,7 +405,7 @@ public struct CreateTaskSheet: View {
     private func actionButton(title: String, color: Color, action: @escaping () -> Void) -> some View {
         let isDisabled = normalizedTaskTitle.isEmpty && title != "删除"
 
-        Button(action: action) {
+        return Button(action: action) {
             Text(title)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(isDisabled ? Color(uiColor: .systemGray4) : .white)
