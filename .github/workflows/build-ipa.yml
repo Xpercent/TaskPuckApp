@@ -54,10 +54,10 @@ jobs:
           cp -a $RUNNER_TEMP/TaskPuckApp.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
 
           cd $RUNNER_TEMP
-          # 3. 核心修复：添加 -y 参数保存软链接 (Symlinks)，防止生成损坏的 IPA
-          zip -ry TaskPuckApp.ipa Payload
+          # 3. 修复：去掉 -y 参数，强制 zip 展开软链接，确保打包的是真实文件而非失效链接
+          zip -r TaskPuckApp.ipa Payload
 
-          # 4. 校验真正的 IPA 结构，避免上传外层 zip 或异常 Payload
+          # 4. 校验真正的 IPA 结构
           zipinfo -1 TaskPuckApp.ipa | grep -Eq '^Payload/[^/]+\.app/Info\.plist$'
 
           mv TaskPuckApp.ipa $RUNNER_TEMP/Export/
