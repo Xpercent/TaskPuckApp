@@ -121,7 +121,7 @@ private struct TaskManagementDetailView: View {
         .sheet(item: $selectedItem) { item in
             CreateTaskSheet(task: item.task, status: item.instance?.status ?? .todo)
                 .environment(engine)
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -140,26 +140,7 @@ private struct ManagedTaskRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Button(action: onToggle) {
-                ZStack {
-                    Circle()
-                        .stroke(Color(hex: item.task.tintHex), lineWidth: 2)
-                        .frame(width: 26, height: 26)
-                    if item.instance?.status == .done {
-                        Circle()
-                            .fill(Color(hex: item.task.tintHex))
-                            .frame(width: 26, height: 26)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .disabled(item.instance == nil)
-            .opacity(item.instance == nil ? 0.35 : 1)
-            .accessibilityLabel(item.instance?.status == .done ? "标记为未完成" : "标记为已完成")
-
+            // 左侧：任务信息（点击空白处和文字均可编辑）
             Button(action: onEdit) {
                 HStack(spacing: 12) {
                     Image(systemName: item.task.iconSymbol)
@@ -184,13 +165,31 @@ private struct ManagedTaskRow: View {
                         }
                     }
 
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+                    Spacer(minLength: 8) // 撑开中间空白，把勾选框推到最右边
                 }
             }
             .buttonStyle(.plain)
+
+            // 右侧：勾选框
+            Button(action: onToggle) {
+                ZStack {
+                    Circle()
+                        .stroke(Color(hex: item.task.tintHex), lineWidth: 2)
+                        .frame(width: 26, height: 26)
+                    if item.instance?.status == .done {
+                        Circle()
+                            .fill(Color(hex: item.task.tintHex))
+                            .frame(width: 26, height: 26)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(item.instance == nil)
+            .opacity(item.instance == nil ? 0.35 : 1)
+            .accessibilityLabel(item.instance?.status == .done ? "标记为未完成" : "标记为已完成")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

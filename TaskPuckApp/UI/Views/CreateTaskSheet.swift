@@ -165,11 +165,11 @@ public struct CreateTaskSheet: View {
 
                 if isCompleted {
                     Circle()
-                        .fill(.white)
+                        .fill(Color(hex: item.task.tintHex))
                         .frame(width: 26, height: 26)
                     Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Color(hex: tintHex))
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
                 }
             }
         }
@@ -403,16 +403,20 @@ public struct CreateTaskSheet: View {
     }
 
     private func actionButton(title: String, color: Color, action: @escaping () -> Void) -> some View {
+        let isDisabled = normalizedTaskTitle.isEmpty && title != "删除"
+
         Button(action: action) {
             Text(title)
                 .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(isDisabled ? Color(uiColor: .systemGray4) : .white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
-                .background(color, in: Capsule())
+                .background(
+                    isDisabled ? color.lighterColor : color,// 当 isDisabled 为 true 时调用 .lighterColor 变浅，删除按钮不受影响
+                    in: Capsule()
+                )
         }
-        .disabled(normalizedTaskTitle.isEmpty && title != "删除")
-        .opacity(normalizedTaskTitle.isEmpty && title != "删除" ? 0.5 : 1)
+        .disabled(isDisabled)
     }
 
     private var normalizedTaskTitle: String {
