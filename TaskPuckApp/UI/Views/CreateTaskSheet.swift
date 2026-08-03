@@ -165,7 +165,7 @@ public struct CreateTaskSheet: View {
 
                 if isCompleted {
                     Circle()
-                        .fill(Color(hex: task.tintHex))
+                        .fill(Color(hex: tintHex))
                         .frame(width: 26, height: 26)
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
