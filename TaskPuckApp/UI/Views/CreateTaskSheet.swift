@@ -30,7 +30,7 @@ public struct CreateTaskSheet: View {
             // 1. 固定顶部的 Header 颜色区域
             header
 
-            // 2. 交互与滚动层 (ZStack 承载，实现自然渐隐与统一底色)
+            // 2. 滚动内容层 + 最下方悬浮创建按钮
             ZStack(alignment: .bottom) {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -41,25 +41,23 @@ public struct CreateTaskSheet: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
-                    // 预留足量底部 padding，确保最下方组件能完整滚动出来
                     .padding(.bottom, 100)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                // iOS 规范渐隐遮罩：内容在进入底部按钮区域时自然淡出渐隐
                 .mask(
                     VStack(spacing: 0) {
-                        Color.black // 中顶部内容完全显示
+                        Color.black
                         LinearGradient(
                             colors: [.black, .black.opacity(0.6), .clear],
                             startPoint: .top,
                             endPoint: .bottom
                         )
-                        .frame(height: 110) // 底部按钮区域渐隐淡出
+                        .frame(height: 110)
                     }
                 )
 
-                // 3. 纯净悬浮按钮（无独立背景色，透出统一底色与渐隐效果）
-                bottomActionBar
+                // 3. 悬浮位于最底部的创建任务按钮
+                createButton
             }
         }
         .background(Color(red: 0.96, green: 0.96, blue: 0.97))
@@ -270,16 +268,6 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
     }
 
-    // 移除独立的背景层，保持透明透出统一背景色
-    private var bottomActionBar: some View {
-        VStack(spacing: 0) {
-            createButton
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 24)
-    }
-
     private var createButton: some View {
         Button {
             engine.createNewTask(
@@ -300,8 +288,15 @@ public struct CreateTaskSheet: View {
                 .frame(height: 56)
                 .background(Color(hex: tintHex), in: Capsule())
         }
-        .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        .opacity(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+        .disabled(isTitleEmpty)
+        .opacity(isTitleEmpty ? 0.5 : 1)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 24)
+    }
+
+    private var isTitleEmpty: Bool {
+        taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var timeString: String {
