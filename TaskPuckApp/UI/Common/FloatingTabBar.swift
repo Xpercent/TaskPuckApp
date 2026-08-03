@@ -26,7 +26,7 @@ public struct FloatingTabBar: View {
             }
         }
         .padding(.horizontal, 16) // 外层左右边距略微缩减，让栏目更饱满
-        .padding(.bottom, 12)
+        .padding(.bottom, 4)
     }
 
     private var content: some View {
@@ -79,8 +79,8 @@ public struct FloatingTabBar: View {
                         : Color.primary.opacity(0.85)
                     )
             }
-            .frame(width: 72, height: 56) // 【修改】：高度增加1/3 (42 -> 56)，宽度拉长 (54 -> 72)
-            .contentShape(Capsule()) // 【关键修复】：将整个 72x56 胶囊区域设为点击热区，避免透明处按压不响应
+            .frame(width: 82, height: 56) // 【修改】：高度增加1/3 (42 -> 56)，宽度拉长 (54 -> 82)
+            .contentShape(Capsule()) // 【关键修复】：将整个 82x56 胶囊区域设为点击热区，避免透明处按压不响应
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel(for: tab))
