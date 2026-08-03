@@ -192,38 +192,39 @@ public struct CreateTaskSheet: View {
         .background(Color.black.opacity(0.04), in: Capsule())
     }
 
-    private var durationSetting: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Label("持续时间", systemImage: "timer")
-                    .font(.system(size: 16, weight: .semibold))
-                Spacer()
-                Button {
-                    withAnimation(.smooth(duration: 0.2)) {
-                        showsDurationPicker.toggle()
-                    }
-                } label: {
-                    Text(durationDescription)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color(hex: tintHex))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("持续时间，\(durationDescription)")
+    // 1. 动态将你的 durationHours 和 durationRemainderMinutes 转为 DatePicker 识别的 Date 绑定的计算属性
+    private var durationDateBinding: Binding<Date> {
+        Binding<Date>(
+            get: {
+                var components = DateComponents()
+                components.hour = durationHours
+                components.minute = durationRemainderMinutes
+                return Calendar.current.date(from: components) ?? Date()
+            },
+            set: { newDate in
+                let components = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                // 如果 durationHours 是 @Binding / @State 变量，直接赋值：
+                durationHours = components.hour ?? 0
+                durationRemainderMinutes = components.minute ?? 0
             }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        )
+    }
 
-            if showsDurationPicker {
-                HStack(spacing: 0) {
-                    durationWheel(title: "小时", selection: durationHours, range: 0...23)
-                    durationWheel(title: "分钟", selection: durationRemainderMinutes, range: 0...59)
-                }
-                .frame(height: 132)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+    // 2. 简化后的纯 DatePicker 样式持续时间设置栏
+    private var durationSetting: some View {
+        HStack {
+            Label("持续时间", systemImage: "timer")
+                .font(.system(size: 16, weight: .semibold))
+
+            Spacer()
+
+            DatePicker("持续时间", selection: durationDateBinding, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .tint(Color(hex: tintHex))
         }
+        .padding(.horizontal, 16)
+        .frame(height: 52)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func durationWheel(
