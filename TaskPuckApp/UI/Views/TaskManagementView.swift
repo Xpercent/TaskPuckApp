@@ -163,9 +163,10 @@ private struct ManagedTaskRow: View {
                                         .animation(.easeInOut(duration: 0.35), value: isDone)
                                 }
                         }
-                        if let placement = item.task.placement {
-                            let duration = DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
-                            Text("\(placement.startTime) - \(placement.endTime) (\(duration)分钟)")
+
+                        // 👇 修改这里：直接使用已经写好的 placementText，避免属性名拼错
+                        if let text = placementText {
+                            Text(text)
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(Color.gray.opacity(0.8))
                         }
@@ -193,8 +194,6 @@ private struct ManagedTaskRow: View {
                 }
             }
             .buttonStyle(.plain)
-            // .disabled(item.instance == nil)
-            // .opacity(item.instance == nil ? 0.35 : 1)
             .accessibilityLabel(item.instance?.status == .done ? "标记为未完成" : "标记为已完成")
         }
         .padding(.horizontal, 14)
