@@ -386,7 +386,10 @@ public final class TaskEngine {
         startTime: String?,
         durationMinutes: Int
     ) {
-        let descriptor = FetchDescriptor<TimelinePlacementEntity>(predicate: #Predicate { $0.instanceId == instance.id })
+        let instanceID = instance.id
+        let descriptor = FetchDescriptor<TimelinePlacementEntity>(
+            predicate: #Predicate { $0.instanceId == instanceID }
+        )
         let placements = (try? modelContext.fetch(descriptor)) ?? []
 
         guard let startTime else {
@@ -405,7 +408,10 @@ public final class TaskEngine {
     }
 
     private func deletePlacement(for instance: TaskInstanceEntity) {
-        let descriptor = FetchDescriptor<TimelinePlacementEntity>(predicate: #Predicate { $0.instanceId == instance.id })
+        let instanceID = instance.id
+        let descriptor = FetchDescriptor<TimelinePlacementEntity>(
+            predicate: #Predicate { $0.instanceId == instanceID }
+        )
         ((try? modelContext.fetch(descriptor)) ?? []).forEach(modelContext.delete)
     }
 

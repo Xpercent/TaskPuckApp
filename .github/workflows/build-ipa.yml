@@ -57,11 +57,14 @@ jobs:
           # 3. 核心修复：添加 -y 参数保存软链接 (Symlinks)，防止生成损坏的 IPA
           zip -ry TaskPuckApp.ipa Payload
 
+          # 4. 校验真正的 IPA 结构，避免上传外层 zip 或异常 Payload
+          zipinfo -1 TaskPuckApp.ipa | grep -Eq '^Payload/[^/]+\.app/Info\.plist$'
+
           mv TaskPuckApp.ipa $RUNNER_TEMP/Export/
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TaskPuckApp-iOS-IPA
+          name: TaskPuckApp-iOS-IPA-unzip-first
           path: ${{ runner.temp }}/Export/TaskPuckApp.ipa
           if-no-files-found: error
