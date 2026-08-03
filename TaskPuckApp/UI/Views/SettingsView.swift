@@ -29,9 +29,9 @@ public struct SettingsView: View {
                 CustomColorSheet(
                     tintHex: $themeHex,
                     iconSymbol: "paintpalette.fill",
-                    presentationDetent: .medium
+                    presentationDetent: .constant(.medium)
                 )
-                .presentationDetents([.medium, .large], selection: .medium)
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
             .alert("清空全部数据？", isPresented: $showsClearConfirmation) {

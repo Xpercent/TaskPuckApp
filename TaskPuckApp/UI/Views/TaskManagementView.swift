@@ -163,7 +163,7 @@ private struct ManagedTaskRow: View {
                                         .animation(.easeInOut(duration: 0.35), value: isDone)
                                 }
                         }
-                        if let placement = item.placement {
+                        if let placement = item.task.placement {
                             let duration = DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
                             Text("\(placement.startTime) - \(placement.endTime) (\(duration)分钟)")
                                 .font(.system(size: 13, weight: .semibold))
