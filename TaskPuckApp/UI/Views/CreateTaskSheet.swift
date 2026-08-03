@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 public struct CreateTaskSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -296,7 +297,7 @@ public struct CreateTaskSheet: View {
     }
 }
 
-// 无延迟动画 ButtonStyle，彻底解决快速点击背景卡没闪烁问题
+// 高性能无动画 ButtonStyle，彻底解决快速点击背景闪烁问题
 private struct NoAnimButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -432,7 +433,7 @@ private struct CustomColorSheet: View {
     @State private var brightness: Double = 0.95
     @State private var hexInputText: String = ""
 
-    // 预设颜色（完全匹配图三的颜色盘）
+    // 预设颜色（完全匹配图三）
     private let presetColors = [
         "F49898", "FF9D73", "E0A800", "8CBD68",
         "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
@@ -459,7 +460,7 @@ private struct CustomColorSheet: View {
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .frame(width: 90)
-                        .onChange(of: hexInputText) { _, newValue in
+                        .onChange(of: hexInputText) { newValue in
                             let cleaned = newValue.trimmingCharacters(in: CharacterSet.alphanumerics.inverted).uppercased()
                             if cleaned.count <= 6 { hexInputText = cleaned }
                             if cleaned.count == 6 {
@@ -524,7 +525,6 @@ private struct CustomColorSheet: View {
 
             // 预设块网格 + 左侧贯穿竖线图标指示圈 (对标图三)
             HStack(alignment: .top, spacing: 20) {
-                // 左侧贯穿线与选中图标指示
                 ZStack {
                     Rectangle()
                         .fill(Color(hex: tintHex).opacity(0.3))
@@ -542,7 +542,6 @@ private struct CustomColorSheet: View {
                 }
                 .frame(width: 52)
 
-                // 预设颜色 Grid 点阵
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(38), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
                     ForEach(presetColors, id: \.self) { colorHex in
                         Button {
@@ -577,25 +576,15 @@ private struct CustomColorSheet: View {
     }
 
     private func syncHSBFromHex(_ hex: String) {
-        let cleanHex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        guard cleanHex.count == 6, let val = UInt64(cleanHex, radix: 16) else { return }
-        let r = CGFloat((val >> 16) & 0xFF) / 255.0
-        let g = CGFloat((val >> 8) & 0xFF) / 255.0
-        let b = CGFloat(val & 0xFF) / 255.0
-        let uiColor = UIColor(red: r, green: g, blue: b, alpha: 1.0)
-        var h: CGFloat = 0, s: CGFloat = 0, br: CGFloat = 0, a: CGFloat = 0
-        if uiColor.getHue(&h, saturation: &s, brightness: &br, alpha: &a) {
-            self.hue = Double(h)
-            self.saturation = Double(s)
-            self.brightness = Double(br)
+        if let hsb = hexToHSB(hex) {
+            self.hue = hsb.h
+            self.saturation = hsb.s
+            self.brightness = hsb.b
         }
     }
 
     private func updateHexFromHSB() {
-        let uiColor = UIColor(hue: CGFloat(hue), saturation: CGFloat(saturation), brightness: CGFloat(brightness), alpha: 1.0)
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
-        let newHex = String(format: "%02X%02X%02X", Int(round(r * 255)), Int(round(g * 255)), Int(round(b * 255)))
+        let newHex = hsbToHex(h: hue, s: saturation, b: brightness)
         self.tintHex = newHex
         self.hexInputText = newHex
     }
@@ -694,6 +683,57 @@ private struct ColorBrightnessSlider: View {
         }
         .frame(height: 32)
     }
+}
+
+// 纯 Swift 算术转换（零外部动态库与反射依赖）
+private func hexToHSB(_ hex: String) -> (h: Double, s: Double, b: Double)? {
+    let cleanHex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+    guard cleanHex.count == 6, let val = UInt64(cleanHex, radix: 16) else { return nil }
+    let r = Double((val >> 16) & 0xFF) / 255.0
+    let g = Double((val >> 8) & 0xFF) / 255.0
+    let b = Double(val & 0xFF) / 255.0
+
+    let maxV = max(r, max(g, b))
+    let minV = min(r, min(g, b))
+    let delta = maxV - minV
+
+    var h: Double = 0
+    if delta > 0 {
+        if maxV == r {
+            h = (g - b) / delta
+            if h < 0 { h += 6 }
+        } else if maxV == g {
+            h = (b - r) / delta + 2
+        } else {
+            h = (r - g) / delta + 4
+        }
+        h /= 6.0
+    }
+
+    let s = maxV == 0 ? 0 : delta / maxV
+    let v = maxV
+    return (h, s, v)
+}
+
+private func hsbToHex(h: Double, s: Double, b: Double) -> String {
+    let hDeg = h * 360.0
+    let c = b * s
+    let x = c * (1.0 - abs((hDeg / 60.0).truncatingRemainder(dividingBy: 2) - 1.0))
+    let m = b - c
+
+    var r1 = 0.0, g1 = 0.0, b1 = 0.0
+    if hDeg < 60 { r1 = c; g1 = x; b1 = 0 }
+    else if hDeg < 120 { r1 = x; g1 = c; b1 = 0 }
+    else if hDeg < 180 { r1 = 0; g1 = c; b1 = x }
+    else if hDeg < 240 { r1 = 0; g1 = x; b1 = c }
+    else if hDeg < 300 { r1 = x; g1 = 0; b1 = c }
+    else { r1 = c; g1 = 0; b1 = x }
+
+    let r = Int(round((r1 + m) * 255.0))
+    let g = Int(round((g1 + m) * 255.0))
+    let bl = Int(round((b1 + m) * 255.0))
+
+    return String(format: "%02X%02X%02X", max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, bl)))
 }
 
 private extension Color {
