@@ -291,9 +291,8 @@ public struct CreateTaskSheet: View {
         }
         .disabled(isTitleEmpty)
         .opacity(isTitleEmpty ? 0.5 : 1)
-        .padding(.horizontal, 20)
-        .padding(.top, 6)
-        .padding(.bottom, 10)
+        .padding(.horizontal)
+        .padding(.bottom, 4) // 进一点下移贴近底边
     }
 
     private var isTitleEmpty: Bool {
@@ -604,7 +603,7 @@ private struct CustomColorSheet: View {
                 .frame(width: 52)
 
                 // 2. 排列修改为一行 5 个
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), alignment: .leading, spacing: 14) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5), alignment: .center, spacing: 14) {
                     ForEach(Array(allPresets.enumerated()), id: \.element) { index, colorHex in
                         let isDefault = index < defaultPresets.count
                         ZStack(alignment: .topTrailing) {
@@ -628,7 +627,6 @@ private struct CustomColorSheet: View {
                             }
                             .buttonStyle(NoAnimButtonStyle())
 
-                            // 1. 提升减号按钮层级 zIndex，防止被遮挡
                             if isEditingPresets && !isDefault {
                                 Button {
                                     withAnimation(.spring(response: 0.25)) {
@@ -649,6 +647,7 @@ private struct CustomColorSheet: View {
                                 .zIndex(10)
                             }
                         }
+                        .frame(maxWidth: .infinity) // 在列内居中并均匀分布，不再紧贴拥挤
                         .zIndex(isEditingPresets && !isDefault ? 10 : 1)
                     }
 
@@ -670,6 +669,7 @@ private struct CustomColorSheet: View {
                         }
                     }
                     .buttonStyle(NoAnimButtonStyle())
+                    .frame(maxWidth: .infinity)
                 }
             }
 
