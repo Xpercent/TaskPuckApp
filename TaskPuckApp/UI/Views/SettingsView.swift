@@ -7,7 +7,7 @@ public struct SettingsView: View {
     @AppStorage("user_avatar_symbol") private var avatarSymbol = "person.crop.circle.fill"
 
     @State private var showsThemePicker = false
-    @State private var themeDetent: PresentationDetent = .large
+    @State private var themeDetent: PresentationDetent = .medium
     @State private var showsClearConfirmation = false
 
     public var body: some View {

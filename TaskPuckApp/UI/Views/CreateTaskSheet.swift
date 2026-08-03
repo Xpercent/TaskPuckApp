@@ -193,37 +193,42 @@ public struct CreateTaskSheet: View {
     }
 
     private var durationSetting: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Label("持续时间", systemImage: "timer")
-                    .font(.system(size: 16, weight: .semibold))
-                Spacer()
-                Button {
-                    withAnimation(.smooth(duration: 0.2)) {
-                        showsDurationPicker.toggle()
-                    }
-                } label: {
-                    Text(durationDescription)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color(hex: tintHex))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("持续时间，\(durationDescription)")
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        HStack {
+            Label("持续时间", systemImage: "timer")
+                .font(.system(size: 16, weight: .semibold))
 
-            if showsDurationPicker {
+            Spacer()
+
+            Button {
+                showsDurationPicker.toggle()
+            } label: {
+                Text(durationDescription)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color(hex: tintHex))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    // 仿原生 DatePicker 右侧时间按钮的灰色胶囊/圆角背景
+                    .background(Color(UIColor.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("持续时间，\(durationDescription)")
+            // 点击后弹出独立 Popover 气泡框
+            .popover(isPresented: $showsDurationPicker, arrowEdge: .top) {
                 HStack(spacing: 0) {
                     durationWheel(title: "小时", selection: durationHours, range: 0...23)
                     durationWheel(title: "分钟", selection: durationRemainderMinutes, range: 0...59)
                 }
-                .frame(height: 132)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .frame(width: 220, height: 140)
+                .padding(.vertical, 8)
+                // 1. 强制 iPhone 上也以 Popover 气泡形式展示（防止变成半屏 Sheet）
+                .presentationCompactAdaptadaptation(.popover)
+                // 2. 实现系统液态玻璃/毛玻璃半透明背景
+                .presentationBackground(.ultraThinMaterial)
             }
         }
+        .padding(.horizontal, 16)
+        .frame(height: 52)
+        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func durationWheel(
@@ -243,23 +248,21 @@ public struct CreateTaskSheet: View {
     }
 
     private var startTimePicker: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Label("开始时间", systemImage: "clock")
-                    .font(.system(size: 16, weight: .semibold))
-                Spacer()
-                Toggle("", isOn: $hasStartTime)
-                    .labelsHidden()
-                    .tint(Color(hex: tintHex))
-            }
+        HStack(spacing: 12) {
+            Label("开始时间", systemImage: "clock")
+                .font(.system(size: 16, weight: .semibold))
 
-            if hasStartTime {
-                DatePicker("开始时间", selection: $startTime, displayedComponents: .hourAndMinute)
-                    .labelsHidden()
-                    .tint(Color(hex: tintHex))
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+            Spacer()
+
+            DatePicker("开始时间", selection: $startTime, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .tint(Color(hex: tintHex))
+                .opacity(hasStartTime ? 1 : 0)  // 关掉时不显示数据（隐藏内容但保留占用空间）
+                .disabled(!hasStartTime)        // 关掉时无法点击交互
+
+            Toggle("", isOn: $hasStartTime)
+                .labelsHidden()
+                .tint(Color(hex: tintHex))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
