@@ -174,7 +174,7 @@ private struct ManagedTaskRow: View {
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .stroke(Color(hex: item.task.tintHex), lineWidth: 2)
+                        .strokeBorder(Color(hex: item.task.tintHex), lineWidth: 3)
                         .frame(width: 26, height: 26)
                     if item.instance?.status == .done {
                         Circle()

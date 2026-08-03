@@ -153,14 +153,10 @@ public struct CreateTaskSheet: View {
     }
 
     private var completionToggle: some View {
-        Button {
-            withAnimation(.smooth(duration: 0.2)) {
-                isCompleted.toggle()
-            }
-        } label: {
+        Button(action: onToggle) {
             ZStack {
                 Circle()
-                    .stroke(Color.white, lineWidth: 2)
+                    .strokeBorder(Color(hex: tintHex), lineWidth: 3)
                     .frame(width: 26, height: 26)
 
                 if isCompleted {
@@ -176,6 +172,7 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
         .accessibilityLabel(isCompleted ? "标记为未完成" : "标记为已完成")
     }
+
 
     private var durationPicker: some View {
         HStack(spacing: 4) {
