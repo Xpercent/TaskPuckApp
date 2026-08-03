@@ -65,29 +65,21 @@ public struct HomeTimelineView: View {
                         .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: -5)
 
                     ScrollView(.vertical, showsIndicators: false) {
-                        ZStack(alignment: .leading) {
-                            // 【改进2】：时间轴向右移动5（31 -> 36）
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.18))
-                                .frame(width: 2)
-                                .padding(.leading, 36)
-                                .padding(.vertical, 20)
-
-                            // 任务列表垂直排列
-                            VStack(spacing: 28) {
-                                let items = engine.getTaskStack(for: engine.selectedDateString)
-                                ForEach(items) { item in
-                                    InteractiveTimelineRow(item: item, selectedDate: selectedDate) {
-                                        // 切换任务状态并触发弹簧动画
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                            engine.toggleTaskStatus(instance: item.instance)
-                                        }
-                                        // 触发中等强度触觉反馈
-                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        // 统一响应式布局容器
+                        VStack(spacing: 28) {
+                            let items = engine.getTaskStack(for: engine.selectedDateString)
+                            ForEach(items) { item in
+                                InteractiveTimelineRow(item: item, selectedDate: selectedDate) {
+                                    // 切换任务状态并触发弹簧动画
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                        engine.toggleTaskStatus(instance: item.instance)
                                     }
+                                    // 触发中等强度触觉反馈
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 }
                             }
                         }
+                        .padding(.horizontal, 20) // 整体主边距：修改此处边距，整套组件全自动响应联动！
                         .padding(.top, 28)
                         .padding(.bottom, 120)
                     }
@@ -133,6 +125,7 @@ public struct HomeTimelineView: View {
     }
 }
 
+// 三段式自适应任务行组件
 struct InteractiveTimelineRow: View {
     let item: DisplayTimelineItem
     let selectedDate: Date
@@ -152,14 +145,11 @@ struct InteractiveTimelineRow: View {
         }
     }
 
-    // 【改进4】：根据当前时间计算任务进度 (0.0 ~ 1.0)
+    // 根据当前时间计算任务进度 (0.0 ~ 1.0)
     private var progress: Double {
         guard let placement = item.placement else { return 0.0 }
 
-        let calendar = Calendar.current
         let now = Date()
-
-        // 拼接具体起止时间 Date 对象
         guard let startTime = dateBySettingTimeString(placement.startTime, on: selectedDate),
               let endTime = dateBySettingTimeString(placement.endTime, on: selectedDate) else {
             return 0.0
@@ -175,7 +165,7 @@ struct InteractiveTimelineRow: View {
         return min(max(elapsed / totalDuration, 0.0), 1.0)
     }
 
-    // 生成具有软渐变过度（Soft Edge Transition）的 LinearGradient
+    // 算法：生成带有柔和软边缘过渡（Smooth Edge）的渐变
     private func createSmoothGradient(reachedColor: Color, unreachedColor: Color) -> LinearGradient {
         let p = progress
         if p <= 0 {
@@ -184,7 +174,7 @@ struct InteractiveTimelineRow: View {
             return LinearGradient(colors: [reachedColor], startPoint: .top, endPoint: .bottom)
         }
 
-        // 柔和过度宽度比例
+        // 柔和过渡区间
         let blendRange = 0.08
         let stop1 = max(0.0, p - blendRange)
         let stop2 = min(1.0, p + blendRange)
@@ -204,24 +194,33 @@ struct InteractiveTimelineRow: View {
     var body: some View {
         let isDone = item.instance.status == .done
 
-        HStack(alignment: .center, spacing: 16) {
-            // 【改进1 & 2 & 4】：任务图标圆底增大1/3 (44 -> 58.67pt)，字号由20提升至24pt，带渐变进度
-            ZStack {
-                // 1. 圆形背景底座 (包含渐变过度)
+        HStack(spacing: 16) {
+            // ==========================================
+            // 第一段：轴线与图标强绑定列（完全居中，无 Magic Number）
+            // ==========================================
+            ZStack(alignment: .center) {
+                // 贯穿上下、自然连接成完整时间轴的浅灰竖线
+                Rectangle()
+                    .fill(Color.gray.opacity(0.18))
+                    .frame(width: 2)
+                    .padding(.vertical, -14) // 向上下延伸半个 Row 间距(28/2)，无缝串联
+
+                // 任务图标圆底 (增大1/3：58.67pt，带平滑渐变过度)
                 Circle()
                     .fill(createSmoothGradient(reachedColor: iconBgColor, unreachedColor: unreachedBgColor))
                     .frame(width: 58.67, height: 58.67)
                     .shadow(color: iconBgColor.opacity(progress > 0 ? 0.25 : 0.05), radius: 6, x: 0, y: 3)
 
-                // 2. 渐变图标（已过时间显示白色，未过时间显示主题色）
+                // 渐变图标 (增大一个字号：24pt)
                 Image(systemName: item.task.iconSymbol)
-                    .font(.system(size: 24, weight: .bold)) // 增大一个字号
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(createSmoothGradient(reachedColor: .white, unreachedColor: iconBgColor))
             }
-            // 调整 Leading 边距使圆心精准对齐 x=36 的时间线
-            .padding(.leading, 7.67)
+            .frame(width: 58.67) // 容器固定与圆底同宽，中心线原生对齐
 
-            // 中间：时间信息与标题
+            // ==========================================
+            // 第二段：时间与标题信息（自适应延伸）
+            // ==========================================
             VStack(alignment: .leading, spacing: 4) {
                 if let placement = item.placement {
                     let duration = DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
@@ -230,7 +229,7 @@ struct InteractiveTimelineRow: View {
                         .foregroundStyle(Color.gray.opacity(0.8))
                 }
 
-                // 【改进5】：打勾后任务名变灰，并由左向右滑过一条灰线 strike-through 动画
+                // 打勾后：标题变灰 + 从左至右划过的横线动画
                 Text(item.task.title)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(isDone ? Color.gray.opacity(0.5) : Color(red: 0.15, green: 0.15, blue: 0.2))
@@ -240,13 +239,16 @@ struct InteractiveTimelineRow: View {
                                 .fill(Color.gray.opacity(0.6))
                                 .frame(width: isDone ? geo.size.width : 0, height: 2)
                                 .frame(maxHeight: .infinity, alignment: .center)
+                                .animation(.easeInOut(duration: 0.35), value: isDone)
                         }
                     }
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            // 【改进3】：完成状态切换按钮缩小一点（24->20pt），外圈圆环加粗（2->3pt），右侧位置保持不变
+            // ==========================================
+            // 第三段：完成状态切换按钮（缩小至20pt，圆环加粗至3pt）
+            // ==========================================
             Button(action: onToggle) {
                 ZStack {
                     // 外圈圆环
@@ -257,9 +259,9 @@ struct InteractiveTimelineRow: View {
                                 : (item.task.iconSymbol == "moon.fill"
                                     ? Color(red: 0.35, green: 0.50, blue: 0.65)
                                     : Color(red: 0.93, green: 0.55, blue: 0.55)),
-                            lineWidth: 3 // 加粗外圈
+                            lineWidth: 3
                         )
-                        .frame(width: 20, height: 20) // 缩小按钮
+                        .frame(width: 20, height: 20)
 
                     // 已完成状态：填充背景并显示对勾
                     if isDone {
@@ -273,7 +275,7 @@ struct InteractiveTimelineRow: View {
                 }
             }
             .buttonStyle(.plain)
-            .padding(.trailing, 24) // 保持不变
+            .padding(.trailing, 4)
         }
     }
 
