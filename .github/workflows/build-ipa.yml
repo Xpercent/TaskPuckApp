@@ -12,10 +12,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode Version 26.3
+      - name: Select Xcode Version
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "26.3"
+          xcode-version: "latest-stable"
 
       - name: Show Xcode Version Info
         run: xcodebuild -version
@@ -44,21 +44,24 @@ jobs:
 
       - name: Export IPA (Unsigned / Ad-Hoc)
         run: |
-          # 1. 彻底清理临时目录，防止残余文件污染 Payload
+          # 1. 彻底清理临时目录
           rm -rf $RUNNER_TEMP/Export $RUNNER_TEMP/Payload $RUNNER_TEMP/TaskPuckApp.ipa
 
           mkdir -p $RUNNER_TEMP/Export
           mkdir -p $RUNNER_TEMP/Payload
 
-          # 2. 使用 cp -a 代替 cp -r，完全保留文件属性与软链接
+          # 2. 复制 app 包到 Payload 目录
           cp -a $RUNNER_TEMP/TaskPuckApp.xcarchive/Products/Applications/*.app $RUNNER_TEMP/Payload/
 
           cd $RUNNER_TEMP
-          # 3. 修复：去掉 -y 参数，强制 zip 展开软链接，确保打包的是真实文件而非失效链接
+          # 3. 递归打包
           zip -r TaskPuckApp.ipa Payload
 
-          # 4. 校验真正的 IPA 结构
+          # 4. 校验 IPA 目录结构
           zipinfo -1 TaskPuckApp.ipa | grep -Eq '^Payload/[^/]+\.app/Info\.plist$'
+
+          # 5. 深度校验：验证 Info.plist 内部是否包含可执行文件名称 (CFBundleExecutable)
+          unzip -p TaskPuckApp.ipa "Payload/*.app/Info.plist" | plutil -p - | grep -q "CFBundleExecutable" || (echo "错误：Info.plist 缺失 CFBundleExecutable 字段！" && exit 1)
 
           mv TaskPuckApp.ipa $RUNNER_TEMP/Export/
 
