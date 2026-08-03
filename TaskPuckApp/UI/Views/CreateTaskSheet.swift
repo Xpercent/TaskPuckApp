@@ -156,16 +156,16 @@ public struct CreateTaskSheet: View {
         Button(action: {isCompleted.toggle()}) {
             ZStack {
                 Circle()
-                    .strokeBorder(Color(hex: tintHex), lineWidth: 3)
-                    .frame(width: 26, height: 26)
+                    .strokeBorder(Color.white, lineWidth: 3)
+                    .frame(width: 24, height: 24)
 
                 if isCompleted {
                     Circle()
-                        .fill(Color(hex: tintHex))
-                        .frame(width: 26, height: 26)
+                        .fill(Color.white)
+                        .frame(width: 24, height: 24)
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color(hex: task.tintHex))
                 }
             }
         }

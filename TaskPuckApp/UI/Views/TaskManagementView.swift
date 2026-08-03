@@ -175,11 +175,11 @@ private struct ManagedTaskRow: View {
                 ZStack {
                     Circle()
                         .strokeBorder(Color(hex: item.task.tintHex), lineWidth: 3)
-                        .frame(width: 26, height: 26)
+                        .frame(width: 24, height: 24)
                     if item.instance?.status == .done {
                         Circle()
                             .fill(Color(hex: item.task.tintHex))
-                            .frame(width: 26, height: 26)
+                            .frame(width: 24, height: 24)
                         Image(systemName: "checkmark")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)

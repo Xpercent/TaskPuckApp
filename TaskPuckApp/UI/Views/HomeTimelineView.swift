@@ -245,21 +245,15 @@ struct InteractiveTimelineRow: View {
             // ==========================================
             Button(action: onToggle) {
                 ZStack {
-                    // 外圈圆环
                     Circle()
-                        .stroke(
-                            iconBgColor,
-                            lineWidth: 3
-                        )
-                        .frame(width: 20, height: 20)
-
-                    // 已完成状态：填充背景并显示对勾
+                        .strokeBorder(iconBgColor, linewidth: 3)
+                        .frame(width: 24, height: 24)
                     if isDone {
                         Circle()
-                            .fill(Color(red: 0.93, green: 0.55, blue: 0.55))
-                            .frame(width: 20, height: 20)
+                            .fill(iconBgColor)
+                            .frame(width: 24, height: 24)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)
                     }
                 }
