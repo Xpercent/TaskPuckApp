@@ -192,25 +192,22 @@ public struct CreateTaskSheet: View {
         .background(Color.black.opacity(0.04), in: Capsule())
     }
 
-    // 1. 动态将你的 durationHours 和 durationRemainderMinutes 转为 DatePicker 识别的 Date 绑定的计算属性
     private var durationDateBinding: Binding<Date> {
         Binding<Date>(
             get: {
                 var components = DateComponents()
-                components.hour = durationHours
-                components.minute = durationRemainderMinutes
+                components.hour = durationHours.wrappedValue
+                components.minute = durationRemainderMinutes.wrappedValue
                 return Calendar.current.date(from: components) ?? Date()
             },
             set: { newDate in
                 let components = Calendar.current.dateComponents([.hour, .minute], from: newDate)
-                // 如果 durationHours 是 @Binding / @State 变量，直接赋值：
-                durationHours = components.hour ?? 0
-                durationRemainderMinutes = components.minute ?? 0
+                durationHours.wrappedValue = components.hour ?? 0
+                durationRemainderMinutes.wrappedValue = components.minute ?? 0
             }
         )
     }
 
-    // 2. 简化后的纯 DatePicker 样式持续时间设置栏
     private var durationSetting: some View {
         HStack {
             Label("持续时间", systemImage: "timer")
