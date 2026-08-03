@@ -26,21 +26,25 @@ public struct CreateTaskSheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            // 固定顶部的 Header 颜色区域
             header
 
-            VStack(spacing: 20) {
-                durationPicker
-                startTimePicker
-                recurrencePicker
-                recurrenceDetail
-                Spacer(minLength: 12)
-                createButton
+            // 下方可滚动表单
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 20) {
+                    durationPicker
+                    startTimePicker
+                    recurrencePicker
+                    recurrenceDetail
+                    Spacer(minLength: 20)
+                    createButton
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
-            .padding(.horizontal, 20)
             .background(Color(red: 0.96, green: 0.96, blue: 0.97))
         }
-        .ignoresSafeArea()
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .ignoresSafeArea(.keyboard)
         .onAppear {
             guard let selectedDate = DateUtils.date(from: engine.selectedDateString) else { return }
             onceDate = selectedDate
@@ -55,13 +59,13 @@ public struct CreateTaskSheet: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.black)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 44, height: 44)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -75,9 +79,9 @@ public struct CreateTaskSheet: View {
                     ZStack {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(Color.white.opacity(0.9))
-                            .frame(width: 68, height: 68)
+                            .frame(width: 64, height: 64)
                         Image(systemName: iconSymbol)
-                            .font(.system(size: 30, weight: .bold))
+                            .font(.system(size: 28, weight: .bold))
                             .foregroundStyle(Color(hex: tintHex))
                     }
                 }
@@ -96,10 +100,10 @@ public struct CreateTaskSheet: View {
                 Spacer()
                 completionToggle
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
-        .frame(height: 230)
+        .frame(height: 180)
         .background(Color(hex: tintHex))
     }
 
@@ -128,7 +132,6 @@ public struct CreateTaskSheet: View {
         }
         .padding(4)
         .background(Color.black.opacity(0.04), in: Capsule())
-        .padding(.top, 24)
     }
 
     private var startTimePicker: some View {
@@ -293,6 +296,14 @@ public struct CreateTaskSheet: View {
     }
 }
 
+// 无延迟动画 ButtonStyle，彻底解决快速点击背景卡没闪烁问题
+private struct NoAnimButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
+    }
+}
+
 private struct AppearancePickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var iconSymbol: String
@@ -300,139 +311,388 @@ private struct AppearancePickerSheet: View {
     @State private var showsCustomColor = false
 
     private let colors = ["EE8C8C", "FF9B70", "F2B500", "90BE6D", "6289AA", "238B6B", "9A426A", "31587C"]
-    private let icons = ["checklist", "alarm.fill", "book.fill", "calendar", "bell.fill", "heart.fill", "star.fill", "figure.run", "fork.knife", "moon.fill", "house.fill", "briefcase.fill"]
+    private let icons = [
+        "checklist", "alarm.fill", "book.fill", "calendar", "bell.fill",
+        "heart.fill", "star.fill", "figure.run", "fork.knife", "moon.fill",
+        "house.fill", "briefcase.fill", "flame.fill", "drop.fill", "leaf.fill"
+    ]
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    Text("颜色和图标").font(.system(size: 30, weight: .bold, design: .rounded))
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("颜色和图标")
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .padding(.top, 4)
+
+                    // 图二样式预设色盘容器
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 14) {
+                        HStack(spacing: 12) {
                             ForEach(colors, id: \.self) { color in
-                                colorSwatch(color)
-                            }
-                            Button { showsCustomColor = true } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundStyle(.primary)
-                                    .frame(width: 50, height: 50)
-                                    .background(Color.black.opacity(0.05), in: Circle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), spacing: 16) {
-                        ForEach(icons, id: \.self) { symbol in
-                            Button { iconSymbol = symbol } label: {
-                                ZStack {
-                                    Circle().fill(iconSymbol == symbol ? Color(hex: tintHex) : Color.black.opacity(0.05))
-                                    Image(systemName: symbol)
-                                        .font(.system(size: 25, weight: .semibold))
-                                        .foregroundStyle(iconSymbol == symbol ? .white : Color(hex: tintHex))
+                                let isSelected = tintHex.uppercased() == color.uppercased()
+                                Button {
+                                    var transaction = Transaction()
+                                    transaction.disablesAnimations = true
+                                    withTransaction(transaction) {
+                                        tintHex = color
+                                    }
+                                } label: {
+                                    ZStack {
+                                        if isSelected {
+                                            Circle()
+                                                .stroke(Color(hex: color), lineWidth: 2.5)
+                                                .frame(width: 42, height: 42)
+                                            Circle()
+                                                .fill(Color(hex: color))
+                                                .frame(width: 32, height: 32)
+                                        } else {
+                                            Circle()
+                                                .fill(Color(hex: color))
+                                                .frame(width: 38, height: 38)
+                                        }
+                                    }
+                                    .frame(width: 42, height: 42)
                                 }
-                                .frame(height: 64)
+                                .buttonStyle(NoAnimButtonStyle())
+                            }
+
+                            Button { showsCustomColor = true } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.black.opacity(0.06))
+                                        .frame(width: 38, height: 38)
+                                    Image(systemName: "ellipsis")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(NoAnimButtonStyle())
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                    }
+                    .background(Color.black.opacity(0.04), in: Capsule())
+
+                    // 每行 5 个精简图标网格
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 14) {
+                        ForEach(icons, id: \.self) { symbol in
+                            let isSelected = iconSymbol == symbol
+                            Button {
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) {
+                                    iconSymbol = symbol
+                                }
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(isSelected ? Color(hex: tintHex) : Color.black.opacity(0.05))
+                                    Image(systemName: symbol)
+                                        .font(.system(size: 20, weight: .semibold))
+                                        .foregroundStyle(isSelected ? .white : Color(hex: tintHex))
+                                }
+                                .frame(height: 52)
                                 .contentShape(Circle())
                             }
-                            .buttonStyle(.plain)
-                            .transaction { $0.animation = nil }
+                            .buttonStyle(NoAnimButtonStyle())
                         }
                     }
+                    .padding(.top, 6)
                 }
-                .padding(.horizontal, 28)
-                .padding(.vertical, 24)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: { Image(systemName: "xmark").fontWeight(.bold) }
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.primary)
+                            .frame(width: 30, height: 30)
+                            .background(Color.black.opacity(0.05), in: Circle())
+                    }
                 }
             }
             .sheet(isPresented: $showsCustomColor) {
-                CustomColorSheet(tintHex: $tintHex)
-                    .presentationDetents([.medium])
+                CustomColorSheet(tintHex: $tintHex, iconSymbol: iconSymbol)
+                    .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
         }
-    }
-
-    private func colorSwatch(_ color: String) -> some View {
-        Button { tintHex = color } label: {
-            Circle().fill(Color(hex: color)).frame(width: 50, height: 50)
-                .overlay { if tintHex.uppercased() == color { Circle().stroke(.white, lineWidth: 4).padding(5) } }
-        }
-        .buttonStyle(.plain)
     }
 }
 
 private struct CustomColorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var tintHex: String
-    @State private var hue = 0.0
-    @State private var brightness = 1.0
+    var iconSymbol: String = "checklist"
+
+    @State private var hue: Double = 0.0
+    @State private var saturation: Double = 0.75
+    @State private var brightness: Double = 0.95
+    @State private var hexInputText: String = ""
+
+    // 预设颜色（完全匹配图三的颜色盘）
+    private let presetColors = [
+        "F49898", "FF9D73", "E0A800", "8CBD68",
+        "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
+        "000000"
+    ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            HStack {
-                Text("选择颜色").font(.system(size: 28, weight: .bold, design: .rounded))
+        VStack(alignment: .leading, spacing: 22) {
+            // Header: 标题、HEX展示与关闭按钮 (图三样式)
+            HStack(alignment: .center) {
+                Text("选择颜色")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.primary)
+
                 Spacer()
-                Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 18, weight: .bold)).frame(width: 46, height: 46).background(Color.black.opacity(0.05), in: Circle()) }.buttonStyle(.plain)
+
+                HStack(spacing: 4) {
+                    Text("#")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(Color(red: 0.9, green: 0.4, blue: 0.4))
+                    
+                    TextField("HEX", text: $hexInputText)
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                        .frame(width: 90)
+                        .onChange(of: hexInputText) { _, newValue in
+                            let cleaned = newValue.trimmingCharacters(in: CharacterSet.alphanumerics.inverted).uppercased()
+                            if cleaned.count <= 6 { hexInputText = cleaned }
+                            if cleaned.count == 6 {
+                                tintHex = cleaned
+                                syncHSBFromHex(cleaned)
+                            }
+                        }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color.black.opacity(0.2))
+                        .frame(height: 1)
+                }
+
+                Spacer().frame(width: 12)
+
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 36, height: 36)
+                        .background(Color.black.opacity(0.06), in: Circle())
+                }
+                .buttonStyle(.plain)
             }
-            HStack(spacing: 10) {
-                Text("#").foregroundStyle(Color(hue: hue, saturation: 0.75, brightness: brightness)).font(.title.bold())
-                TextField("HEX", text: $tintHex).textInputAutocapitalization(.characters).autocorrectionDisabled().font(.title2.monospaced()).onChange(of: tintHex) { _, newValue in if newValue.count > 6 { tintHex = String(newValue.prefix(6)) } }
+
+            // Slider 1: 彩虹 Hue 色彩光谱条
+            ColorSpectrumSlider(hue: $hue) {
+                updateHexFromHSB()
             }
-            ColorBandSlider(value: $hue, gradient: LinearGradient(colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red], startPoint: .leading, endPoint: .trailing))
-            ColorBandSlider(value: $brightness, gradient: LinearGradient(colors: [.black, Color(hue: hue, saturation: 0.8, brightness: 1)], startPoint: .leading, endPoint: .trailing))
+
+            // Slider 2: 亮度/暗度条
+            ColorBrightnessSlider(hue: hue, saturation: $saturation, brightness: $brightness) {
+                updateHexFromHSB()
+            }
+
+            // 预设 Headers (对标图三)
+            HStack {
+                Text("预设")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+
+                Button { } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 12))
+                        Text("编辑")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.05), in: Capsule())
+                    .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 4)
+
+            // 预设块网格 + 左侧贯穿竖线图标指示圈 (对标图三)
+            HStack(alignment: .top, spacing: 20) {
+                // 左侧贯穿线与选中图标指示
+                ZStack {
+                    Rectangle()
+                        .fill(Color(hex: tintHex).opacity(0.3))
+                        .frame(width: 2, height: 125)
+
+                    Circle()
+                        .fill(Color(hex: tintHex))
+                        .frame(width: 52, height: 52)
+                        .shadow(color: Color(hex: tintHex).opacity(0.3), radius: 6, y: 3)
+                        .overlay {
+                            Image(systemName: iconSymbol)
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                }
+                .frame(width: 52)
+
+                // 预设颜色 Grid 点阵
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(38), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
+                    ForEach(presetColors, id: \.self) { colorHex in
+                        Button {
+                            tintHex = colorHex
+                            hexInputText = colorHex
+                            syncHSBFromHex(colorHex)
+                        } label: {
+                            Circle()
+                                .fill(Color(hex: colorHex))
+                                .frame(width: 38, height: 38)
+                                .overlay {
+                                    if tintHex.uppercased() == colorHex.uppercased() {
+                                        Circle()
+                                            .stroke(Color.white, lineWidth: 2.5)
+                                            .shadow(color: .black.opacity(0.2), radius: 2)
+                                    }
+                                }
+                        }
+                        .buttonStyle(NoAnimButtonStyle())
+                    }
+                }
+            }
+
             Spacer()
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 24)
-        .onAppear { updateSlidersFromHex() }
-        .onChange(of: hue) { _, _ in updateHexFromSliders() }
-        .onChange(of: brightness) { _, _ in updateHexFromSliders() }
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+        .onAppear {
+            hexInputText = tintHex.uppercased()
+            syncHSBFromHex(tintHex)
+        }
     }
 
-    private func updateSlidersFromHex() {
-        let color = UIColor(Color(hex: tintHex))
-        var h = CGFloat.zero, s = CGFloat.zero, b = CGFloat.zero, a = CGFloat.zero
-        if color.getHue(&h, saturation: &s, brightness: &b, alpha: &a) { hue = h; brightness = b }
+    private func syncHSBFromHex(_ hex: String) {
+        let cleanHex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        guard cleanHex.count == 6, let val = UInt64(cleanHex, radix: 16) else { return }
+        let r = CGFloat((val >> 16) & 0xFF) / 255.0
+        let g = CGFloat((val >> 8) & 0xFF) / 255.0
+        let b = CGFloat(val & 0xFF) / 255.0
+        let uiColor = UIColor(red: r, green: g, blue: b, alpha: 1.0)
+        var h: CGFloat = 0, s: CGFloat = 0, br: CGFloat = 0, a: CGFloat = 0
+        if uiColor.getHue(&h, saturation: &s, brightness: &br, alpha: &a) {
+            self.hue = Double(h)
+            self.saturation = Double(s)
+            self.brightness = Double(br)
+        }
     }
 
-    private func updateHexFromSliders() {
-        let uiColor = UIColor(hue: hue, saturation: 0.75, brightness: brightness, alpha: 1)
-        var red = CGFloat.zero, green = CGFloat.zero, blue = CGFloat.zero, alpha = CGFloat.zero
-        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        tintHex = String(format: "%02lX%02lX%02lX", red * 255, green * 255, blue * 255)
+    private func updateHexFromHSB() {
+        let uiColor = UIColor(hue: CGFloat(hue), saturation: CGFloat(saturation), brightness: CGFloat(brightness), alpha: 1.0)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let newHex = String(format: "%02X%02X%02X", Int(round(r * 255)), Int(round(g * 255)), Int(round(b * 255)))
+        self.tintHex = newHex
+        self.hexInputText = newHex
     }
 }
 
-private struct ColorBandSlider: View {
-    @Binding var value: Double
-    let gradient: LinearGradient
+private struct ColorSpectrumSlider: View {
+    @Binding var hue: Double
+    var onChange: () -> Void
 
     var body: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
+        GeometryReader { geo in
+            let width = geo.size.width
+            let handleSize: CGFloat = 32
+            let travelWidth = max(1, width - handleSize)
+            let currentX = CGFloat(hue) * travelWidth
+
             ZStack(alignment: .leading) {
-                Capsule().fill(gradient).frame(height: 40)
-                Circle()
-                    .fill(.white)
-                    .frame(width: 30, height: 30)
-                    .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
-                    .overlay(Circle().stroke(.white, lineWidth: 2))
-                    .offset(x: max(0, min(width - 30, value * (width - 30))))
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [.red, .yellow, .green, .cyan, .blue, .purple, .red],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 32)
+
+                ZStack {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: handleSize, height: handleSize)
+                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                    Circle()
+                        .fill(Color(hue: hue, saturation: 1.0, brightness: 1.0))
+                        .frame(width: handleSize - 6, height: handleSize - 6)
+                }
+                .offset(x: currentX)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let newX = max(0, min(travelWidth, value.location.x - handleSize / 2))
+                            hue = Double(newX / travelWidth)
+                            onChange()
+                        }
+                )
             }
-            .frame(height: 40)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { gesture in
-                        guard width > 30 else { return }
-                        value = min(1, max(0, (gesture.location.x - 15) / (width - 30)))
-                    }
-            )
         }
-        .frame(height: 40)
+        .frame(height: 32)
+    }
+}
+
+private struct ColorBrightnessSlider: View {
+    var hue: Double
+    @Binding var saturation: Double
+    @Binding var brightness: Double
+    var onChange: () -> Void
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let handleSize: CGFloat = 32
+            let travelWidth = max(1, width - handleSize)
+            let currentX = CGFloat(brightness) * travelWidth
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [.black, Color(hue: hue, saturation: 1.0, brightness: 1.0)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 32)
+
+                ZStack {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: handleSize, height: handleSize)
+                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                    Circle()
+                        .fill(Color(hue: hue, saturation: saturation, brightness: brightness))
+                        .frame(width: handleSize - 6, height: handleSize - 6)
+                }
+                .offset(x: currentX)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let newX = max(0, min(travelWidth, value.location.x - handleSize / 2))
+                            brightness = Double(newX / travelWidth)
+                            saturation = max(0.4, brightness)
+                            onChange()
+                        }
+                )
+            }
+        }
+        .frame(height: 32)
     }
 }
 
