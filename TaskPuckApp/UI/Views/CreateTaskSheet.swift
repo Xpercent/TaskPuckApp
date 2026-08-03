@@ -30,7 +30,7 @@ public struct CreateTaskSheet: View {
             // 1. 固定顶部的 Header 颜色区域
             header
 
-            // 2. 交互与滚动层 (ZStack 承载，允许 ScrollView 内容贯穿底部毛玻璃)
+            // 2. 交互与滚动层 (ZStack 承载，实现自然渐隐与统一底色)
             ZStack(alignment: .bottom) {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
@@ -41,12 +41,24 @@ public struct CreateTaskSheet: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
-                    // 预留足够 Margin，确保滚动到最底部时内容完全展现且不被按钮卡切
-                    .padding(.bottom, 110)
+                    // 预留足量底部 padding，确保最下方组件能完整滚动出来
+                    .padding(.bottom, 100)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // iOS 规范渐隐遮罩：内容在进入底部按钮区域时自然淡出渐隐
+                .mask(
+                    VStack(spacing: 0) {
+                        Color.black // 中顶部内容完全显示
+                        LinearGradient(
+                            colors: [.black, .black.opacity(0.6), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 110) // 底部按钮区域渐隐淡出
+                    }
+                )
 
-                // 3. 毛玻璃效果悬浮底部按钮
+                // 3. 纯净悬浮按钮（无独立背景色，透出统一底色与渐隐效果）
                 bottomActionBar
             }
         }
@@ -258,15 +270,14 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
     }
 
-    // 带有毛玻璃材质的悬浮底部栏
+    // 移除独立的背景层，保持透明透出统一背景色
     private var bottomActionBar: some View {
         VStack(spacing: 0) {
             createButton
         }
         .padding(.horizontal, 20)
-        .padding(.top, 14)
+        .padding(.top, 10)
         .padding(.bottom, 24)
-        .background(.ultraThinMaterial)
     }
 
     private var createButton: some View {
@@ -520,7 +531,7 @@ private struct CustomColorSheet: View {
                 .nativeLiquidGlass(in: Circle(), interactive: true)
             }
 
-            // 重构滑动条：单向驱动，彻底消除抖动与变灰
+            // 单向驱动 Slider
             ColorSpectrumSlider(hue: $hue) {
                 updateHexFromHSB()
             }
@@ -679,7 +690,6 @@ private struct CustomColorSheet: View {
 
     private func syncHSBFromHex(_ hex: String) {
         if let hsb = hexToHSB(hex) {
-            // 在低饱和度（灰白黑）下，保留当前 Hue 色相，防止滑块归零或抖动
             if hsb.s > 0.05 {
                 self.hue = hsb.h
             }
@@ -726,7 +736,6 @@ private struct ColorSpectrumSlider: View {
                         .fill(Color.white)
                         .frame(width: handleSize, height: handleSize)
                         .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
-                    // 上方 Handle 永远填充纯 Hue 光谱色，彻底避免变灰变黑
                     Circle()
                         .fill(Color(hue: hue, saturation: 1.0, brightness: 1.0))
                         .frame(width: handleSize - 6, height: handleSize - 6)
