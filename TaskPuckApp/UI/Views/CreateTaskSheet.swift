@@ -297,7 +297,6 @@ public struct CreateTaskSheet: View {
     }
 }
 
-// 高性能无动画 ButtonStyle，彻底解决快速点击背景闪烁问题
 private struct NoAnimButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -326,7 +325,7 @@ private struct AppearancePickerSheet: View {
                         .font(.system(size: 26, weight: .bold, design: .rounded))
                         .padding(.top, 4)
 
-                    // 图二样式预设色盘容器
+                    // 图二样式预设色盘容器（增加 Capsule 裁切避免色块溢出）
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(colors, id: \.self) { color in
@@ -373,9 +372,9 @@ private struct AppearancePickerSheet: View {
                         .padding(.vertical, 8)
                     }
                     .background(Color.black.opacity(0.04), in: Capsule())
-                    .clipShape(Capsule()) // 彻底裁切溢出胶囊框外的色块
+                    .clipShape(Capsule())
 
-                    // 每行 5 个精简图标网格
+                    // 1. 永不卡没灰底的图标网格 (底层灰色固顶，主题色做 Overlay 透明度切换)
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 14) {
                         ForEach(icons, id: \.self) { symbol in
                             let isSelected = iconSymbol == symbol
@@ -387,11 +386,9 @@ private struct AppearancePickerSheet: View {
                                 }
                             } label: {
                                 ZStack {
-                                    // 1. 固定存在的灰色底层圈，绝不消失
                                     Circle()
                                         .fill(Color.black.opacity(0.05))
 
-                                    // 2. 选中的主题色覆盖圈，通过 opacity 平滑显隐
                                     Circle()
                                         .fill(Color(hex: tintHex))
                                         .opacity(isSelected ? 1.0 : 0.0)
@@ -411,7 +408,6 @@ private struct AppearancePickerSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            // 1. AppearancePickerSheet 右上角关闭按钮：
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
@@ -444,7 +440,6 @@ private struct CustomColorSheet: View {
     @State private var brightness: Double = 0.95
     @State private var hexInputText: String = ""
 
-    // 预设颜色（完全匹配图三）
     private let presetColors = [
         "F49898", "FF9D73", "E0A800", "8CBD68",
         "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
@@ -453,7 +448,6 @@ private struct CustomColorSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            // Header: 标题、HEX展示与关闭按钮 (图三样式)
             HStack(alignment: .center) {
                 Text("选择颜色")
                     .font(.system(size: 24, weight: .bold))
@@ -471,7 +465,7 @@ private struct CustomColorSheet: View {
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                         .frame(width: 90)
-                        .onChange(of: hexInputText) { newValue in
+                        .onChange(of: hexInputText) { _, newValue in
                             let cleaned = newValue.trimmingCharacters(in: CharacterSet.alphanumerics.inverted).uppercased()
                             if cleaned.count <= 6 { hexInputText = cleaned }
                             if cleaned.count == 6 {
@@ -490,7 +484,7 @@ private struct CustomColorSheet: View {
 
                 Spacer().frame(width: 12)
 
-                // 2. CustomColorSheet 右上角关闭按钮：
+                // 4. nativeLiquidGlass 关闭按钮
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .bold))
@@ -502,17 +496,15 @@ private struct CustomColorSheet: View {
                 .nativeLiquidGlass(in: Circle(), interactive: true)
             }
 
-            // Slider 1: 彩虹 Hue 色彩光谱条
-            ColorSpectrumSlider(hue: $hue) {
+            // 3. 重构平滑色彩 Hue 与 Brightness 渐变 Slider
+            ColorSpectrumSlider(hue: $hue, currentColorHex: tintHex) {
                 updateHexFromHSB()
             }
 
-            // Slider 2: 亮度/暗度条
-            ColorBrightnessSlider(hue: hue, saturation: $saturation, brightness: $brightness) {
+            ColorBrightnessSlider(hue: hue, saturation: $saturation, brightness: $brightness, currentColorHex: tintHex) {
                 updateHexFromHSB()
             }
 
-            // 预设 Headers (对标图三)
             HStack {
                 Text("预设")
                     .font(.system(size: 18, weight: .bold))
@@ -536,7 +528,6 @@ private struct CustomColorSheet: View {
             }
             .padding(.top, 4)
 
-            // 预设块网格 + 左侧贯穿竖线图标指示圈 (对标图三)
             HStack(alignment: .top, spacing: 20) {
                 ZStack {
                     Rectangle()
@@ -699,7 +690,6 @@ private struct ColorBrightnessSlider: View {
     }
 }
 
-// 基于 UIColor 的精准 HSB/RGB 转换函数
 private func hexToHSB(_ hex: String) -> (h: Double, s: Double, b: Double)? {
     let cleanHex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
     guard cleanHex.count == 6, let val = UInt64(cleanHex, radix: 16) else { return nil }
@@ -708,16 +698,14 @@ private func hexToHSB(_ hex: String) -> (h: Double, s: Double, b: Double)? {
     let b = CGFloat((val) & 0xFF) / 255.0
     let uiColor = UIColor(red: r, green: g, blue: b, alpha: 1.0)
     var h: CGFloat = 0, s: CGFloat = 0, br: CGFloat = 0, a: CGFloat = 0
-    if uiColor.getHue(&h, saturation: &s, brightness: &br, alpha: &a) {
-        return (Double(h), Double(s), Double(br))
-    }
-    return nil
+    _ = uiColor.getHue(&h, saturation: &s, brightness: &br, alpha: &a)
+    return (Double(h), Double(s), Double(br))
 }
 
 private func hsbToHex(h: Double, s: Double, b: Double) -> String {
     let uiColor = UIColor(hue: CGFloat(h), saturation: CGFloat(s), brightness: CGFloat(b), alpha: 1.0)
     var r: CGFloat = 0, g: CGFloat = 0, bl: CGFloat = 0, a: CGFloat = 0
-    uiColor.getRed(&r, green: &g, blue: &bl, alpha: &a)
+    _ = uiColor.getRed(&r, green: &g, blue: &bl, alpha: &a)
     let ri = Int(round(r * 255.0))
     let gi = Int(round(g * 255.0))
     let bi = Int(round(bl * 255.0))
