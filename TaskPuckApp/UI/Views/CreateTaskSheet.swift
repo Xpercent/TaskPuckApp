@@ -153,7 +153,7 @@ public struct CreateTaskSheet: View {
     }
 
     private var completionToggle: some View {
-        Button(action: {isCompleted.toggle()}) {
+        Button {isCompleted.toggle()} label: {
             ZStack {
                 Circle()
                     .strokeBorder(Color.white, lineWidth: 3)

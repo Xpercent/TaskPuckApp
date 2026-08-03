@@ -246,7 +246,7 @@ struct InteractiveTimelineRow: View {
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .strokeBorder(iconBgColor, linewidth: 3)
+                        .strokeBorder(iconBgColor, lineWidth: 3)
                         .frame(width: 24, height: 24)
                     if isDone {
                         Circle()
