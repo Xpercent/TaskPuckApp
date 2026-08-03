@@ -6,9 +6,11 @@ public struct CreateTaskSheet: View {
     @Environment(TaskEngine.self) private var engine
 
     @State private var taskTitle = ""
-    @State private var selectedDurationMinutes = 15
+    @State private var selectedDurationMinutes = 0
     @State private var selectedRecurrence = RecurrenceOption.once
     @State private var startTime = Date()
+    @State private var hasStartTime = true
+    @State private var showsDurationPicker = false
     @State private var onceDate = Date()
     @State private var rangeStartDate = Date()
     @State private var rangeEndDate = Date()
@@ -19,8 +21,21 @@ public struct CreateTaskSheet: View {
     @State private var tintHex = "EE8C8C"
     @State private var showsAppearancePicker = false
 
+    private let editingTask: TaskEntity?
+    private let editingStatus: InstanceStatus
+
+    public init() {
+        self.editingTask = nil
+        self.editingStatus = .todo
+    }
+
+    init(task: TaskEntity, status: InstanceStatus = .todo) {
+        self.editingTask = task
+        self.editingStatus = status
+    }
+
     private let durationOptions = [
-        DurationOption(title: "1m", minutes: 1),
+        DurationOption(title: "无", minutes: 0),
         DurationOption(title: "15m", minutes: 15),
         DurationOption(title: "30m", minutes: 30),
         DurationOption(title: "45m", minutes: 45),
@@ -45,7 +60,10 @@ public struct CreateTaskSheet: View {
             ZStack(alignment: .bottom) {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
-                        durationPicker
+                        durationSetting
+                        if !showsDurationPicker {
+                            durationPicker
+                        }
                         startTimePicker
                         recurrencePicker
                         recurrenceDetail
@@ -72,7 +90,7 @@ public struct CreateTaskSheet: View {
         }
         .background(Color(red: 0.96, green: 0.96, blue: 0.97))
         .ignoresSafeArea(.keyboard)
-        .onAppear(perform: initializeDates)
+        .onAppear(perform: initializeForm)
         .sheet(isPresented: $showsAppearancePicker) {
             AppearancePickerSheet(iconSymbol: $iconSymbol, tintHex: $tintHex)
                 .presentationDetents([.medium, .large])
@@ -116,7 +134,7 @@ public struct CreateTaskSheet: View {
                 .accessibilityLabel("选择图标和颜色")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(selectedDurationMinutes)分钟 · \(timeString)")
+                    Text(headerSummaryText)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
                     TextField("任务名称", text: $taskTitle)
@@ -174,17 +192,77 @@ public struct CreateTaskSheet: View {
         .background(Color.black.opacity(0.04), in: Capsule())
     }
 
+    private var durationSetting: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Label("持续时间", systemImage: "timer")
+                    .font(.system(size: 16, weight: .semibold))
+                Spacer()
+                Button {
+                    withAnimation(.smooth(duration: 0.2)) {
+                        showsDurationPicker.toggle()
+                    }
+                } label: {
+                    Text(durationDescription)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(hex: tintHex))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("持续时间，\(durationDescription)")
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            if showsDurationPicker {
+                HStack(spacing: 0) {
+                    durationWheel(title: "小时", selection: durationHours, range: 0...23)
+                    durationWheel(title: "分钟", selection: durationRemainderMinutes, range: 0...59)
+                }
+                .frame(height: 132)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private func durationWheel(
+        title: String,
+        selection: Binding<Int>,
+        range: ClosedRange<Int>
+    ) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(range, id: \.self) { value in
+                Text("\(value)\(title == "小时" ? "小时" : "分")")
+                    .tag(value)
+            }
+        }
+        .pickerStyle(.wheel)
+        .frame(maxWidth: .infinity)
+        .clipped()
+    }
+
     private var startTimePicker: some View {
-        HStack {
-            Label("开始时间", systemImage: "clock")
-                .font(.system(size: 16, weight: .semibold))
-            Spacer()
-            DatePicker("开始时间", selection: $startTime, displayedComponents: .hourAndMinute)
-                .labelsHidden()
-                .tint(Color(hex: tintHex))
+        VStack(spacing: 12) {
+            HStack {
+                Label("开始时间", systemImage: "clock")
+                    .font(.system(size: 16, weight: .semibold))
+                Spacer()
+                Toggle("", isOn: $hasStartTime)
+                    .labelsHidden()
+                    .tint(Color(hex: tintHex))
+            }
+
+            if hasStartTime {
+                DatePicker("开始时间", selection: $startTime, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+                    .tint(Color(hex: tintHex))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(.horizontal, 16)
-        .frame(height: 52)
+        .padding(.vertical, 10)
         .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
@@ -314,22 +392,40 @@ public struct CreateTaskSheet: View {
     }
 
     private var createButton: some View {
-        Button(action: createTask) {
-            Text("创建任务")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(Color(hex: tintHex), in: Capsule())
+        Group {
+            if editingTask == nil {
+                actionButton(title: "创建任务", color: Color(hex: tintHex), action: createTask)
+            } else {
+                HStack(spacing: 12) {
+                    actionButton(title: "删除", color: .red, action: deleteTask)
+                    actionButton(title: "更新", color: Color(hex: tintHex), action: updateTask)
+                }
+            }
         }
-        .disabled(normalizedTaskTitle.isEmpty)
-        .opacity(normalizedTaskTitle.isEmpty ? 0.5 : 1)
         .padding(.horizontal, 20)
         .padding(.bottom, 6)
     }
 
+    private func actionButton(title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(color, in: Capsule())
+        }
+        .disabled(normalizedTaskTitle.isEmpty && title != "删除")
+        .opacity(normalizedTaskTitle.isEmpty && title != "删除" ? 0.5 : 1)
+    }
+
     private var normalizedTaskTitle: String {
         taskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var headerSummaryText: String {
+        let time = hasStartTime ? timeString : "无开始时间"
+        return "\(durationDescription) · \(time)"
     }
 
     private var timeString: String {
@@ -339,6 +435,29 @@ public struct CreateTaskSheet: View {
     private var storedTimeString: String {
         let components = Calendar.current.dateComponents([.hour, .minute], from: startTime)
         return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+    }
+
+    private var durationDescription: String {
+        guard selectedDurationMinutes > 0 else { return "无" }
+        let hours = selectedDurationMinutes / 60
+        let minutes = selectedDurationMinutes % 60
+        if hours == 0 { return "\(minutes) 分钟" }
+        if minutes == 0 { return "\(hours) 小时" }
+        return "\(hours) 小时 \(minutes) 分钟"
+    }
+
+    private var durationHours: Binding<Int> {
+        Binding(
+            get: { selectedDurationMinutes / 60 },
+            set: { selectedDurationMinutes = $0 * 60 + selectedDurationMinutes % 60 }
+        )
+    }
+
+    private var durationRemainderMinutes: Binding<Int> {
+        Binding(
+            get: { selectedDurationMinutes % 60 },
+            set: { selectedDurationMinutes = selectedDurationMinutes / 60 * 60 + $0 }
+        )
     }
 
     private var selectedRecurrenceRule: RecurrenceRule {
@@ -361,11 +480,18 @@ public struct CreateTaskSheet: View {
         }
     }
 
-    private func initializeDates() {
+    private func initializeForm() {
+        if let editingTask {
+            load(editingTask)
+            return
+        }
+
         guard let selectedDate = DateUtils.date(from: engine.selectedDateString) else { return }
         onceDate = selectedDate
         rangeStartDate = selectedDate
         rangeEndDate = selectedDate
+        isCompleted = false
+        hasStartTime = true
     }
 
     private func createTask() {
@@ -373,11 +499,35 @@ public struct CreateTaskSheet: View {
             title: normalizedTaskTitle,
             durationMinutes: selectedDurationMinutes,
             recurrence: selectedRecurrenceRule,
-            startTime: storedTimeString,
+            startTime: hasStartTime ? storedTimeString : nil,
             iconSymbol: iconSymbol,
             tintHex: tintHex,
             initialStatus: isCompleted ? .done : .todo
         )
+        dismiss()
+    }
+
+    private func updateTask() {
+        guard let editingTask else { return }
+        engine.updateTask(
+            editingTask,
+            title: normalizedTaskTitle,
+            durationMinutes: selectedDurationMinutes,
+            recurrence: selectedRecurrenceRule,
+            startTime: hasStartTime ? storedTimeString : nil,
+            iconSymbol: iconSymbol,
+            tintHex: tintHex
+        )
+        if let instance = engine.managedTasks(for: .today).first(where: { $0.task.id == editingTask.id })?.instance,
+           (instance.status == .done) != isCompleted {
+            engine.toggleTaskStatus(instance: instance)
+        }
+        dismiss()
+    }
+
+    private func deleteTask() {
+        guard let editingTask else { return }
+        engine.deleteTask(editingTask)
         dismiss()
     }
 
@@ -395,6 +545,55 @@ public struct CreateTaskSheet: View {
         } else {
             selectedMonthDays.insert(day)
         }
+    }
+
+    private func load(_ task: TaskEntity) {
+        taskTitle = task.title
+        iconSymbol = task.iconSymbol
+        tintHex = task.tintHex
+        isCompleted = editingStatus == .done
+
+        if let placement = task.defaultPlacement {
+            selectedDurationMinutes = placement.duration
+            startTime = date(for: placement.startTime)
+            hasStartTime = true
+        } else {
+            selectedDurationMinutes = 0
+            hasStartTime = false
+        }
+
+        guard let rule = task.recurrenceRules.first else { return }
+        switch rule {
+        case .daily:
+            selectedRecurrence = .daily
+        case .weekly(let weekdays):
+            selectedRecurrence = .weekly
+            selectedWeekdays = Set(weekdays)
+        case .monthly(let day):
+            selectedRecurrence = .monthly
+            selectedMonthDays = [day]
+        case .monthlyMultiple(let days):
+            selectedRecurrence = .monthly
+            selectedMonthDays = Set(days)
+        case .once(let date):
+            selectedRecurrence = .once
+            onceDate = DateUtils.date(from: date) ?? onceDate
+        case .dateRange(let start, let end, _):
+            selectedRecurrence = .dateRange
+            rangeStartDate = DateUtils.date(from: start) ?? rangeStartDate
+            rangeEndDate = DateUtils.date(from: end) ?? rangeEndDate
+        }
+    }
+
+    private func date(for time: String) -> Date {
+        let components = time.split(separator: ":").compactMap { Int($0) }
+        guard components.count == 2 else { return Date() }
+        return Calendar.current.date(
+            bySettingHour: components[0],
+            minute: components[1],
+            second: 0,
+            of: Date()
+        ) ?? Date()
     }
 }
 

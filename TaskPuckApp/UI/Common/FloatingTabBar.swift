@@ -5,7 +5,8 @@ public struct FloatingTabBar: View {
     public var onPlusTapped: () -> Void
 
     // 选中状态的颜色 #f39f99
-    private let activeColor = Color(red: 243/255, green: 159/255, blue: 153/255)
+    @AppStorage("app_theme_hex") private var themeHex = "EE8C8C"
+    private var activeColor: Color { Color(hex: themeHex) }
     
     // 用于选中项滑动动画的命名空间
     @Namespace private var activeTabNamespace

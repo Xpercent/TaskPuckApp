@@ -18,6 +18,24 @@ public struct TaskOverviewStats: Equatable {
     public var completed: Int = 0
 }
 
+public enum TaskManagementCategory: CaseIterable, Hashable, Identifiable {
+    case today
+    case daily
+    case weekly
+    case monthly
+    case dateRange
+    case once
+
+    public var id: Self { self }
+}
+
+public struct ManagedTaskItem: Identifiable {
+    public let task: TaskEntity
+    public let instance: TaskInstanceEntity?
+
+    public var id: String { task.id }
+}
+
 @Observable
 @MainActor
 public final class TaskEngine {
@@ -31,8 +49,6 @@ public final class TaskEngine {
         self.selectedDateString = initialDate
         self.updateTemporalSafetyState()
     }
-
-    // MARK: - Temporal Safety Guard
 
     public func selectDate(_ dateString: String) {
         self.selectedDateString = dateString
@@ -48,15 +64,13 @@ public final class TaskEngine {
         self.isReadOnly = selectedDateString < today
     }
 
-    // MARK: - Engine Core 1: Dynamic Lazy Generation
-
     public func ensureInstances(for targetDate: String) {
         let taskDescriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { !$0.isArchived })
         guard let tasks = try? modelContext.fetch(taskDescriptor) else { return }
 
         let targetDateObj = DateUtils.date(from: targetDate) ?? Date()
         let calendar = Calendar.current
-        let weekdayIndex = calendar.component(.weekday, from: targetDateObj) // 1 = Sun, 2 = Mon ...
+        let weekdayIndex = calendar.component(.weekday, from: targetDateObj)
 
         for task in tasks {
             let taskId = task.id
@@ -74,7 +88,6 @@ public final class TaskEngine {
                 )
                 modelContext.insert(newInstance)
 
-                // Default timeline placement if defined
                 if let defaultPlacement = task.defaultPlacement {
                     let endTime = DateUtils.calculateEndTime(startTime: defaultPlacement.startTime, durationMinutes: defaultPlacement.duration)
                     let placement = TimelinePlacementEntity(instanceId: newInstance.id, startTime: defaultPlacement.startTime, endTime: endTime)
@@ -88,8 +101,10 @@ public final class TaskEngine {
     private func matchesRecurrence(rules: [RecurrenceRule], targetDate: String, weekdayIndex: Int) -> Bool {
         for rule in rules {
             switch rule {
-            case .daily: return true
-            case .once(let date): if date == targetDate { return true }
+            case .daily:
+                return true
+            case .once(let date):
+                if date == targetDate { return true }
             case .weekly(let weekdays):
                 if weekdays.contains(weekday(for: weekdayIndex)) { return true }
             case .monthly(let day):
@@ -123,8 +138,6 @@ public final class TaskEngine {
         }
     }
 
-    // MARK: - Engine Core 2: Auto Roll Overdue Tasks
-
     public func autoRollOverdueTasks() {
         let today = DateUtils.todayString()
         let instanceDescriptor = FetchDescriptor<TaskInstanceEntity>(
@@ -133,12 +146,10 @@ public final class TaskEngine {
         guard let overdueInstances = try? modelContext.fetch(instanceDescriptor) else { return }
 
         for instance in overdueInstances {
-            instance.currentDate = today // Maintain originalDate, move currentDate to Today
+            instance.currentDate = today
         }
         try? modelContext.save()
     }
-
-    // MARK: - Engine Core 3: Task Stack Sorting Matrix (4-Level Order)
 
     public func getTaskStack(for targetDate: String) -> [DisplayTimelineItem] {
         let instanceDescriptor = FetchDescriptor<TaskInstanceEntity>(
@@ -160,8 +171,7 @@ public final class TaskEngine {
             displayItems.append(DisplayTimelineItem(task: task, instance: instance, placement: placement))
         }
 
-        // Sort timeline placed items chronologically
-        displayItems.sort { (a, b) -> Bool in
+        displayItems.sort { a, b in
             let timeA = a.placement?.startTime ?? "99:99"
             let timeB = b.placement?.startTime ?? "99:99"
             return timeA < timeB
@@ -189,11 +199,40 @@ public final class TaskEngine {
         )
     }
 
-    // MARK: - Actions
+    public func prepareTaskManagement() {
+        ensureInstances(for: DateUtils.todayString())
+    }
+
+    public func managedTasks(for category: TaskManagementCategory) -> [ManagedTaskItem] {
+        let today = DateUtils.todayString()
+        let activeTasks = fetchActiveTasks()
+        let instances = fetchInstances(for: today)
+        let instancesByTaskID = Dictionary(
+            instances.map { ($0.taskId, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        let tasks: [TaskEntity]
+        switch category {
+        case .today:
+            let taskIDs = Set(instances.map(\.taskId))
+            tasks = activeTasks.filter { taskIDs.contains($0.id) }
+        case .daily, .weekly, .monthly, .dateRange, .once:
+            tasks = activeTasks.filter { task in
+                task.recurrenceRules.contains { rule in
+                    category.matches(rule)
+                }
+            }
+        }
+
+        return tasks
+            .map { ManagedTaskItem(task: $0, instance: instancesByTaskID[$0.id]) }
+            .sorted(by: taskManagementSort)
+    }
 
     public func toggleTaskStatus(instance: TaskInstanceEntity) {
         if isReadOnly {
-            self.toastMessage = "历史排期不可篡改"
+            toastMessage = "历史排期不可篡改"
             return
         }
         instance.status = (instance.status == .done) ? .todo : .done
@@ -210,11 +249,11 @@ public final class TaskEngine {
         initialStatus: InstanceStatus = .todo
     ) {
         if isReadOnly {
-            self.toastMessage = "历史排期不可篡改"
+            toastMessage = "历史排期不可篡改"
             return
         }
 
-        let defaultPlacement = startTime != nil ? DefaultPlacement(startTime: startTime!, duration: durationMinutes) : nil
+        let defaultPlacement = startTime.map { DefaultPlacement(startTime: $0, duration: durationMinutes) }
         let newTask = TaskEntity(
             title: title,
             iconSymbol: iconSymbol,
@@ -243,6 +282,133 @@ public final class TaskEngine {
         try? modelContext.save()
     }
 
+    public func updateTask(
+        _ task: TaskEntity,
+        title: String,
+        durationMinutes: Int,
+        recurrence: RecurrenceRule,
+        startTime: String?,
+        iconSymbol: String,
+        tintHex: String
+    ) {
+        if isReadOnly {
+            toastMessage = "历史排期不可篡改"
+            return
+        }
+
+        task.title = title
+        task.iconSymbol = iconSymbol
+        task.tintHex = tintHex
+        task.recurrenceRules = [recurrence]
+        task.defaultPlacement = startTime.map { DefaultPlacement(startTime: $0, duration: durationMinutes) }
+
+        let instances = fetchInstances(forTaskID: task.id)
+        for instance in instances {
+            updatePlacement(for: instance, startTime: startTime, durationMinutes: durationMinutes)
+        }
+        try? modelContext.save()
+    }
+
+    public func deleteTask(_ task: TaskEntity) {
+        if isReadOnly {
+            toastMessage = "历史排期不可篡改"
+            return
+        }
+
+        for instance in fetchInstances(forTaskID: task.id) {
+            deletePlacement(for: instance)
+            modelContext.delete(instance)
+        }
+        modelContext.delete(task)
+        try? modelContext.save()
+    }
+
+    public func clearAllData() {
+        fetchAll(TimelinePlacementEntity.self).forEach(modelContext.delete)
+        fetchAll(TaskInstanceEntity.self).forEach(modelContext.delete)
+        fetchAll(TaskEntity.self).forEach(modelContext.delete)
+        try? modelContext.save()
+    }
+
+    public func initializeSampleData() {
+        clearAllData()
+        let today = DateUtils.todayString()
+        let tomorrow = DateUtils.string(from: DateUtils.calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
+        selectedDateString = today
+        isReadOnly = false
+
+        createNewTask(title: "晨间计划", durationMinutes: 30, recurrence: .daily, startTime: "08:00", iconSymbol: "sun.max.fill", tintHex: "FF9D73")
+        createNewTask(title: "项目回顾", durationMinutes: 45, recurrence: .weekly(weekdays: [.mon, .wed, .fri]), startTime: "10:00", iconSymbol: "briefcase.fill", tintHex: "5E86A8")
+        createNewTask(title: "整理账单", durationMinutes: 20, recurrence: .monthlyMultiple(days: [1, 15]), startTime: nil, iconSymbol: "list.bullet.rectangle", tintHex: "8CBD68")
+        createNewTask(title: "旅行准备", durationMinutes: 60, recurrence: .dateRange(start: today, end: tomorrow, autoArchive: nil), startTime: "19:00", iconSymbol: "suitcase.rolling.fill", tintHex: "8D3F68")
+        createNewTask(title: "预约体检", durationMinutes: 0, recurrence: .once(date: tomorrow), startTime: nil, iconSymbol: "heart.text.square.fill", tintHex: "F49898")
+        toastMessage = "已初始化测试数据"
+    }
+
+    private func fetchActiveTasks() -> [TaskEntity] {
+        let descriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { !$0.isArchived })
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func fetchInstances(for date: String) -> [TaskInstanceEntity] {
+        let descriptor = FetchDescriptor<TaskInstanceEntity>(predicate: #Predicate { $0.currentDate == date })
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func fetchInstances(forTaskID taskID: String) -> [TaskInstanceEntity] {
+        let descriptor = FetchDescriptor<TaskInstanceEntity>(predicate: #Predicate { $0.taskId == taskID })
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func fetchAll<Model: PersistentModel>(_ type: Model.Type) -> [Model] {
+        (try? modelContext.fetch(FetchDescriptor<Model>())) ?? []
+    }
+
+    private func taskManagementSort(_ lhs: ManagedTaskItem, _ rhs: ManagedTaskItem) -> Bool {
+        let lhsTime = lhs.task.defaultPlacement?.startTime
+        let rhsTime = rhs.task.defaultPlacement?.startTime
+        switch (lhsTime, rhsTime) {
+        case (nil, nil):
+            return lhs.task.title.localizedStandardCompare(rhs.task.title) == .orderedAscending
+        case (nil, _?):
+            return true
+        case (_?, nil):
+            return false
+        case let (lhsTime?, rhsTime?):
+            return lhsTime == rhsTime
+                ? lhs.task.title.localizedStandardCompare(rhs.task.title) == .orderedAscending
+                : lhsTime < rhsTime
+        }
+    }
+
+    private func updatePlacement(
+        for instance: TaskInstanceEntity,
+        startTime: String?,
+        durationMinutes: Int
+    ) {
+        let descriptor = FetchDescriptor<TimelinePlacementEntity>(predicate: #Predicate { $0.instanceId == instance.id })
+        let placements = (try? modelContext.fetch(descriptor)) ?? []
+
+        guard let startTime else {
+            placements.forEach(modelContext.delete)
+            return
+        }
+
+        let endTime = DateUtils.calculateEndTime(startTime: startTime, durationMinutes: durationMinutes)
+        if let placement = placements.first {
+            placement.startTime = startTime
+            placement.endTime = endTime
+            placements.dropFirst().forEach(modelContext.delete)
+        } else {
+            modelContext.insert(TimelinePlacementEntity(instanceId: instance.id, startTime: startTime, endTime: endTime))
+        }
+    }
+
+    private func deletePlacement(for instance: TaskInstanceEntity) {
+        let descriptor = FetchDescriptor<TimelinePlacementEntity>(predicate: #Predicate { $0.instanceId == instance.id })
+        ((try? modelContext.fetch(descriptor)) ?? []).forEach(modelContext.delete)
+    }
+
     private func firstOccurrence(for rule: RecurrenceRule, from dateString: String) -> String {
         if case .once(let date) = rule { return date }
         if case .dateRange(let start, let end, _) = rule {
@@ -265,5 +431,16 @@ public final class TaskEngine {
         }
         return dateString
     }
+}
 
+private extension TaskManagementCategory {
+    func matches(_ rule: RecurrenceRule) -> Bool {
+        switch (self, rule) {
+        case (.daily, .daily), (.weekly, .weekly), (.monthly, .monthly),
+             (.monthly, .monthlyMultiple), (.dateRange, .dateRange), (.once, .once):
+            true
+        default:
+            false
+        }
+    }
 }
