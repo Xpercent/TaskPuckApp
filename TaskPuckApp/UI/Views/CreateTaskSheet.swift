@@ -27,24 +27,25 @@ public struct CreateTaskSheet: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // 固定顶部的 Header 颜色区域
+            // 1. 固定顶部的 Header 颜色区域
             header
 
-            // 下方可滚动表单
+            // 2. 中间可滚动的选项内容列表
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
                     durationPicker
                     startTimePicker
                     recurrencePicker
                     recurrenceDetail
-                    Spacer(minLength: 20)
-                    createButton
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.vertical, 20)
             }
-            .background(Color(red: 0.96, green: 0.96, blue: 0.97))
+
+            // 3. 始终固定在屏幕最下方的按钮区域
+            bottomActionBar
         }
+        .background(Color(red: 0.96, green: 0.96, blue: 0.97))
         .ignoresSafeArea(.keyboard)
         .onAppear {
             guard let selectedDate = DateUtils.date(from: engine.selectedDateString) else { return }
@@ -57,6 +58,41 @@ public struct CreateTaskSheet: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+    }
+
+    // 固定底部的按钮容器
+    private var bottomActionBar: some View {
+        VStack(spacing: 0) {
+            createButton
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 24)
+        .background(Color(red: 0.96, green: 0.96, blue: 0.97))
+    }
+
+    private var createButton: some View {
+        Button {
+            engine.createNewTask(
+                title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                durationMinutes: durationMinutesMap[selectedDurationIndex],
+                recurrence: selectedRecurrenceRule,
+                startTime: storedTimeString,
+                iconSymbol: iconSymbol,
+                tintHex: tintHex,
+                initialStatus: isCompleted ? .done : .todo
+            )
+            dismiss()
+        } label: {
+            Text("创建任务")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(Color(hex: tintHex), in: Capsule())
+        }
+        .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .opacity(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
     }
 
     private var header: some View {
@@ -252,31 +288,6 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
     }
 
-    private var createButton: some View {
-        Button {
-            engine.createNewTask(
-                title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                durationMinutes: durationMinutesMap[selectedDurationIndex],
-                recurrence: selectedRecurrenceRule,
-                startTime: storedTimeString,
-                iconSymbol: iconSymbol,
-                tintHex: tintHex,
-                initialStatus: isCompleted ? .done : .todo
-            )
-            dismiss()
-        } label: {
-            Text("创建任务")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(Color(hex: tintHex), in: Capsule())
-        }
-        .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        .opacity(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
-        .padding(.bottom, 28)
-    }
-
     private var timeString: String {
         startTime.formatted(date: .omitted, time: .shortened)
     }
@@ -439,15 +450,26 @@ private struct CustomColorSheet: View {
     @State private var saturation: Double = 0.75
     @State private var brightness: Double = 0.95
     @State private var hexInputText: String = ""
+    @State private var isEditingPresets: Bool = false
 
-    private let presetColors = [
+    // 持久化保存用户自定义的预设颜色
+    @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
+    @State private var customPresets: [String] = []
+
+    // 默认 9 个不可删除的基础预设
+    private let defaultPresets = [
         "F49898", "FF9D73", "E0A800", "8CBD68",
         "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
         "000000"
     ]
 
+    private var allPresets: [String] {
+        defaultPresets + customPresets
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
+            // Header
             HStack(alignment: .center) {
                 Text("选择颜色")
                     .font(.system(size: 24, weight: .bold))
@@ -484,7 +506,6 @@ private struct CustomColorSheet: View {
 
                 Spacer().frame(width: 12)
 
-                // 4. nativeLiquidGlass 关闭按钮
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 15, weight: .bold))
@@ -496,7 +517,7 @@ private struct CustomColorSheet: View {
                 .nativeLiquidGlass(in: Circle(), interactive: true)
             }
 
-            // 3. 重构平滑色彩 Hue 与 Brightness 渐变 Slider
+            // Sliders
             ColorSpectrumSlider(hue: $hue, currentColorHex: tintHex) {
                 updateHexFromHSB()
             }
@@ -505,6 +526,7 @@ private struct CustomColorSheet: View {
                 updateHexFromHSB()
             }
 
+            // 预设 Header & 编辑按钮切换
             HStack {
                 Text("预设")
                     .font(.system(size: 18, weight: .bold))
@@ -512,22 +534,27 @@ private struct CustomColorSheet: View {
                 
                 Spacer()
 
-                Button { } label: {
+                Button {
+                    withAnimation(.spring(response: 0.25)) {
+                        isEditingPresets.toggle()
+                    }
+                } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
+                        Image(systemName: isEditingPresets ? "checkmark" : "star.fill")
                             .font(.system(size: 12))
-                        Text("编辑")
+                        Text(isEditingPresets ? "完成" : "编辑")
                             .font(.system(size: 14, weight: .semibold))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.05), in: Capsule())
+                    .background(isEditingPresets ? Color.black.opacity(0.12) : Color.black.opacity(0.05), in: Capsule())
                     .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
             }
             .padding(.top, 4)
 
+            // 预设点阵 & 减号删除 / 加号新增
             HStack(alignment: .top, spacing: 20) {
                 ZStack {
                     Rectangle()
@@ -547,25 +574,70 @@ private struct CustomColorSheet: View {
                 .frame(width: 52)
 
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(38), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
-                    ForEach(presetColors, id: \.self) { colorHex in
-                        Button {
-                            tintHex = colorHex
-                            hexInputText = colorHex
-                            syncHSBFromHex(colorHex)
-                        } label: {
-                            Circle()
-                                .fill(Color(hex: colorHex))
-                                .frame(width: 38, height: 38)
-                                .overlay {
-                                    if tintHex.uppercased() == colorHex.uppercased() {
+                    ForEach(Array(allPresets.enumerated()), id: \.element) { index, colorHex in
+                        let isDefault = index < defaultPresets.count
+                        ZStack(alignment: .topTrailing) {
+                            Button {
+                                if !isEditingPresets {
+                                    tintHex = colorHex
+                                    hexInputText = colorHex
+                                    syncHSBFromHex(colorHex)
+                                }
+                            } label: {
+                                Circle()
+                                    .fill(Color(hex: colorHex))
+                                    .frame(width: 38, height: 38)
+                                    .overlay {
+                                        if tintHex.uppercased() == colorHex.uppercased() {
+                                            Circle()
+                                                .stroke(Color.white, lineWidth: 2.5)
+                                                .shadow(color: .black.opacity(0.2), radius: 2)
+                                        }
+                                    }
+                            }
+                            .buttonStyle(NoAnimButtonStyle())
+
+                            // 编辑模式下，非默认的自定义颜色显示减号删除按钮
+                            if isEditingPresets && !isDefault {
+                                Button {
+                                    withAnimation(.spring(response: 0.25)) {
+                                        removeCustomPreset(colorHex)
+                                    }
+                                } label: {
+                                    ZStack {
                                         Circle()
-                                            .stroke(Color.white, lineWidth: 2.5)
-                                            .shadow(color: .black.opacity(0.2), radius: 2)
+                                            .fill(Color.red)
+                                            .frame(width: 18, height: 18)
+                                        Image(systemName: "minus")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundStyle(.white)
                                     }
                                 }
+                                .buttonStyle(.plain)
+                                .offset(x: 4, y: -4)
+                            }
                         }
-                        .buttonStyle(NoAnimButtonStyle())
                     }
+
+                    // 预设列表最后一个：加号按钮，将当前调好的颜色加入预设
+                    Button {
+                        withAnimation(.spring(response: 0.25)) {
+                            addCustomPreset(tintHex)
+                        }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: tintHex).opacity(0.15))
+                                .frame(width: 38, height: 38)
+                            Circle()
+                                .stroke(Color(hex: tintHex), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
+                                .frame(width: 38, height: 38)
+                            Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(Color(hex: tintHex))
+                        }
+                    }
+                    .buttonStyle(NoAnimButtonStyle())
                 }
             }
 
@@ -574,9 +646,34 @@ private struct CustomColorSheet: View {
         .padding(.horizontal, 24)
         .padding(.top, 24)
         .onAppear {
+            loadCustomPresets()
             hexInputText = tintHex.uppercased()
             syncHSBFromHex(tintHex)
         }
+    }
+
+    private func loadCustomPresets() {
+        if customPresetsRaw.isEmpty {
+            customPresets = []
+        } else {
+            customPresets = customPresetsRaw.components(separatedBy: ",").filter { !$0.isEmpty }
+        }
+    }
+
+    private func saveCustomPresets() {
+        customPresetsRaw = customPresets.joined(separator: ",")
+    }
+
+    private func addCustomPreset(_ hex: String) {
+        let cleanHex = hex.uppercased()
+        guard !allPresets.contains(cleanHex) else { return }
+        customPresets.append(cleanHex)
+        saveCustomPresets()
+    }
+
+    private func removeCustomPreset(_ hex: String) {
+        customPresets.removeAll { $0.uppercased() == hex.uppercased() }
+        saveCustomPresets()
     }
 
     private func syncHSBFromHex(_ hex: String) {
