@@ -41,7 +41,7 @@ public struct CreateTaskSheet: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, 90)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .mask(
@@ -52,7 +52,7 @@ public struct CreateTaskSheet: View {
                             startPoint: .top,
                             endPoint: .bottom
                         )
-                        .frame(height: 110)
+                        .frame(height: 100)
                     }
                 )
 
@@ -268,6 +268,7 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
     }
 
+    // 5. 将创建任务按钮下移贴近底部
     private var createButton: some View {
         Button {
             engine.createNewTask(
@@ -291,8 +292,8 @@ public struct CreateTaskSheet: View {
         .disabled(isTitleEmpty)
         .opacity(isTitleEmpty ? 0.5 : 1)
         .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 24)
+        .padding(.top, 6)
+        .padding(.bottom, 10)
     }
 
     private var isTitleEmpty: Bool {
@@ -332,7 +333,24 @@ private struct AppearancePickerSheet: View {
     @Binding var tintHex: String
     @State private var showsCustomColor = false
 
-    private let colors = ["EE8C8C", "FF9B70", "F2B500", "90BE6D", "6289AA", "238B6B", "9A426A", "31587C"]
+    // 3. 读取动态预设库，与“更多颜色”Sheet 预设保持同步
+    @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
+
+    private let defaultPresets = [
+        "F49898", "FF9D73", "E0A800", "8CBD68",
+        "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
+        "000000"
+    ]
+
+    private var allPresets: [String] {
+        if customPresetsRaw.isEmpty {
+            return defaultPresets
+        } else {
+            let custom = customPresetsRaw.components(separatedBy: ",").filter { !$0.isEmpty }
+            return defaultPresets + custom
+        }
+    }
+
     private let icons = [
         "checklist", "alarm.fill", "book.fill", "calendar", "bell.fill",
         "heart.fill", "star.fill", "figure.run", "fork.knife", "moon.fill",
@@ -347,9 +365,10 @@ private struct AppearancePickerSheet: View {
                         .font(.system(size: 26, weight: .bold, design: .rounded))
                         .padding(.top, 4)
 
+                    // 3. 动态预设色彩横向滚动条
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            ForEach(colors, id: \.self) { color in
+                            ForEach(allPresets, id: \.self) { color in
                                 let isSelected = tintHex.uppercased() == color.uppercased()
                                 Button {
                                     var transaction = Transaction()
@@ -429,12 +448,13 @@ private struct AppearancePickerSheet: View {
                 .padding(.vertical, 16)
             }
             .toolbar {
+                // 4. 与创建任务 Sheet 完全一致的关闭按钮
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(.black)
-                            .frame(width: 38, height: 38)
+                            .frame(width: 44, height: 44)
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -513,13 +533,14 @@ private struct CustomColorSheet: View {
                         .frame(height: 1)
                 }
 
-                Spacer().frame(width: 12)
+                Spacer().frame(width: 8)
 
+                // 4. 与创建任务 Sheet 完全一致的关闭按钮
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.black)
-                        .frame(width: 38, height: 38)
+                        .frame(width: 44, height: 44)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -563,8 +584,8 @@ private struct CustomColorSheet: View {
             }
             .padding(.top, 4)
 
-            // 预设列表与指示图标
-            HStack(alignment: .top, spacing: 20) {
+            // 预设列表与指示图标 (一行 5 个)
+            HStack(alignment: .top, spacing: 16) {
                 ZStack {
                     Rectangle()
                         .fill(Color(hex: tintHex).opacity(0.3))
@@ -582,7 +603,8 @@ private struct CustomColorSheet: View {
                 }
                 .frame(width: 52)
 
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(38), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
+                // 2. 排列修改为一行 5 个
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), alignment: .leading, spacing: 14) {
                     ForEach(Array(allPresets.enumerated()), id: \.element) { index, colorHex in
                         let isDefault = index < defaultPresets.count
                         ZStack(alignment: .topTrailing) {
@@ -595,7 +617,7 @@ private struct CustomColorSheet: View {
                             } label: {
                                 Circle()
                                     .fill(Color(hex: colorHex))
-                                    .frame(width: 38, height: 38)
+                                    .frame(width: 36, height: 36)
                                     .overlay {
                                         if tintHex.uppercased() == colorHex.uppercased() {
                                             Circle()
@@ -606,6 +628,7 @@ private struct CustomColorSheet: View {
                             }
                             .buttonStyle(NoAnimButtonStyle())
 
+                            // 1. 提升减号按钮层级 zIndex，防止被遮挡
                             if isEditingPresets && !isDefault {
                                 Button {
                                     withAnimation(.spring(response: 0.25)) {
@@ -622,9 +645,11 @@ private struct CustomColorSheet: View {
                                     }
                                 }
                                 .buttonStyle(.plain)
-                                .offset(x: 4, y: -4)
+                                .offset(x: 5, y: -5)
+                                .zIndex(10)
                             }
                         }
+                        .zIndex(isEditingPresets && !isDefault ? 10 : 1)
                     }
 
                     Button {
@@ -635,10 +660,10 @@ private struct CustomColorSheet: View {
                         ZStack {
                             Circle()
                                 .fill(Color(hex: tintHex).opacity(0.15))
-                                .frame(width: 38, height: 38)
+                                .frame(width: 36, height: 36)
                             Circle()
                                 .stroke(Color(hex: tintHex), style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                                .frame(width: 38, height: 38)
+                                .frame(width: 36, height: 36)
                             Image(systemName: "plus")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(Color(hex: tintHex))
