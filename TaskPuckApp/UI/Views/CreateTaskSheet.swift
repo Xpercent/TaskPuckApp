@@ -30,20 +30,25 @@ public struct CreateTaskSheet: View {
             // 1. 固定顶部的 Header 颜色区域
             header
 
-            // 2. 中间可滚动的选项内容列表
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 20) {
-                    durationPicker
-                    startTimePicker
-                    recurrencePicker
-                    recurrenceDetail
+            // 2. 交互与滚动层 (ZStack 承载，允许 ScrollView 内容贯穿底部毛玻璃)
+            ZStack(alignment: .bottom) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        durationPicker
+                        startTimePicker
+                        recurrencePicker
+                        recurrenceDetail
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    // 预留足够 Margin，确保滚动到最底部时内容完全展现且不被按钮卡切
+                    .padding(.bottom, 110)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 20)
-            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 3. 始终固定在屏幕最下方的按钮区域
-            bottomActionBar
+                // 3. 毛玻璃效果悬浮底部按钮
+                bottomActionBar
+            }
         }
         .background(Color(red: 0.96, green: 0.96, blue: 0.97))
         .ignoresSafeArea(.keyboard)
@@ -58,41 +63,6 @@ public struct CreateTaskSheet: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
-    }
-
-    // 固定底部的按钮容器
-    private var bottomActionBar: some View {
-        VStack(spacing: 0) {
-            createButton
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 24)
-        .background(Color(red: 0.96, green: 0.96, blue: 0.97))
-    }
-
-    private var createButton: some View {
-        Button {
-            engine.createNewTask(
-                title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                durationMinutes: durationMinutesMap[selectedDurationIndex],
-                recurrence: selectedRecurrenceRule,
-                startTime: storedTimeString,
-                iconSymbol: iconSymbol,
-                tintHex: tintHex,
-                initialStatus: isCompleted ? .done : .todo
-            )
-            dismiss()
-        } label: {
-            Text("创建任务")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(Color(hex: tintHex), in: Capsule())
-        }
-        .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        .opacity(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
     }
 
     private var header: some View {
@@ -288,6 +258,41 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
     }
 
+    // 带有毛玻璃材质的悬浮底部栏
+    private var bottomActionBar: some View {
+        VStack(spacing: 0) {
+            createButton
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+        .padding(.bottom, 24)
+        .background(.ultraThinMaterial)
+    }
+
+    private var createButton: some View {
+        Button {
+            engine.createNewTask(
+                title: taskTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                durationMinutes: durationMinutesMap[selectedDurationIndex],
+                recurrence: selectedRecurrenceRule,
+                startTime: storedTimeString,
+                iconSymbol: iconSymbol,
+                tintHex: tintHex,
+                initialStatus: isCompleted ? .done : .todo
+            )
+            dismiss()
+        } label: {
+            Text("创建任务")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(Color(hex: tintHex), in: Capsule())
+        }
+        .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .opacity(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+    }
+
     private var timeString: String {
         startTime.formatted(date: .omitted, time: .shortened)
     }
@@ -336,7 +341,6 @@ private struct AppearancePickerSheet: View {
                         .font(.system(size: 26, weight: .bold, design: .rounded))
                         .padding(.top, 4)
 
-                    // 图二样式预设色盘容器（增加 Capsule 裁切避免色块溢出）
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(colors, id: \.self) { color in
@@ -385,7 +389,6 @@ private struct AppearancePickerSheet: View {
                     .background(Color.black.opacity(0.04), in: Capsule())
                     .clipShape(Capsule())
 
-                    // 1. 永不卡没灰底的图标网格 (底层灰色固顶，主题色做 Overlay 透明度切换)
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 14) {
                         ForEach(icons, id: \.self) { symbol in
                             let isSelected = iconSymbol == symbol
@@ -451,12 +454,11 @@ private struct CustomColorSheet: View {
     @State private var brightness: Double = 0.95
     @State private var hexInputText: String = ""
     @State private var isEditingPresets: Bool = false
+    @State private var isProgrammaticUpdate: Bool = false
 
-    // 持久化保存用户自定义的预设颜色
     @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
     @State private var customPresets: [String] = []
 
-    // 默认 9 个不可删除的基础预设
     private let defaultPresets = [
         "F49898", "FF9D73", "E0A800", "8CBD68",
         "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
@@ -488,6 +490,7 @@ private struct CustomColorSheet: View {
                         .autocorrectionDisabled()
                         .frame(width: 90)
                         .onChange(of: hexInputText) { _, newValue in
+                            guard !isProgrammaticUpdate else { return }
                             let cleaned = newValue.trimmingCharacters(in: CharacterSet.alphanumerics.inverted).uppercased()
                             if cleaned.count <= 6 { hexInputText = cleaned }
                             if cleaned.count == 6 {
@@ -517,8 +520,8 @@ private struct CustomColorSheet: View {
                 .nativeLiquidGlass(in: Circle(), interactive: true)
             }
 
-            // Sliders
-            ColorSpectrumSlider(hue: $hue, currentColorHex: tintHex) {
+            // 重构滑动条：单向驱动，彻底消除抖动与变灰
+            ColorSpectrumSlider(hue: $hue) {
                 updateHexFromHSB()
             }
 
@@ -526,7 +529,7 @@ private struct CustomColorSheet: View {
                 updateHexFromHSB()
             }
 
-            // 预设 Header & 编辑按钮切换
+            // 预设 Header
             HStack {
                 Text("预设")
                     .font(.system(size: 18, weight: .bold))
@@ -554,7 +557,7 @@ private struct CustomColorSheet: View {
             }
             .padding(.top, 4)
 
-            // 预设点阵 & 减号删除 / 加号新增
+            // 预设列表与指示图标
             HStack(alignment: .top, spacing: 20) {
                 ZStack {
                     Rectangle()
@@ -597,7 +600,6 @@ private struct CustomColorSheet: View {
                             }
                             .buttonStyle(NoAnimButtonStyle())
 
-                            // 编辑模式下，非默认的自定义颜色显示减号删除按钮
                             if isEditingPresets && !isDefault {
                                 Button {
                                     withAnimation(.spring(response: 0.25)) {
@@ -619,7 +621,6 @@ private struct CustomColorSheet: View {
                         }
                     }
 
-                    // 预设列表最后一个：加号按钮，将当前调好的颜色加入预设
                     Button {
                         withAnimation(.spring(response: 0.25)) {
                             addCustomPreset(tintHex)
@@ -678,22 +679,28 @@ private struct CustomColorSheet: View {
 
     private func syncHSBFromHex(_ hex: String) {
         if let hsb = hexToHSB(hex) {
-            self.hue = hsb.h
+            // 在低饱和度（灰白黑）下，保留当前 Hue 色相，防止滑块归零或抖动
+            if hsb.s > 0.05 {
+                self.hue = hsb.h
+            }
             self.saturation = hsb.s
             self.brightness = hsb.b
         }
     }
 
     private func updateHexFromHSB() {
+        isProgrammaticUpdate = true
         let newHex = hsbToHex(h: hue, s: saturation, b: brightness)
         self.tintHex = newHex
         self.hexInputText = newHex
+        DispatchQueue.main.async {
+            isProgrammaticUpdate = false
+        }
     }
 }
 
 private struct ColorSpectrumSlider: View {
     @Binding var hue: Double
-    var currentColorHex: String
     var onChange: () -> Void
 
     var body: some View {
@@ -718,9 +725,10 @@ private struct ColorSpectrumSlider: View {
                     Circle()
                         .fill(Color.white)
                         .frame(width: handleSize, height: handleSize)
-                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                        .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
+                    // 上方 Handle 永远填充纯 Hue 光谱色，彻底避免变灰变黑
                     Circle()
-                        .fill(Color(hex: currentColorHex))
+                        .fill(Color(hue: hue, saturation: 1.0, brightness: 1.0))
                         .frame(width: handleSize - 6, height: handleSize - 6)
                 }
                 .offset(x: currentX)
@@ -756,7 +764,7 @@ private struct ColorBrightnessSlider: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [.black, Color(hue: hue, saturation: max(0.5, saturation), brightness: 1.0)],
+                            colors: [.black, Color(hue: hue, saturation: max(0.4, saturation), brightness: 1.0)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -767,7 +775,7 @@ private struct ColorBrightnessSlider: View {
                     Circle()
                         .fill(Color.white)
                         .frame(width: handleSize, height: handleSize)
-                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
+                        .shadow(color: .black.opacity(0.18), radius: 4, x: 0, y: 2)
                     Circle()
                         .fill(Color(hex: currentColorHex))
                         .frame(width: handleSize - 6, height: handleSize - 6)
