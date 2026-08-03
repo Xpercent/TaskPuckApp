@@ -291,8 +291,8 @@ public struct CreateTaskSheet: View {
         }
         .disabled(isTitleEmpty)
         .opacity(isTitleEmpty ? 0.5 : 1)
-        .padding(.horizontal)
-        .padding(.bottom, 4) // 进一点下移贴近底边
+        .padding(.horizontal, 20)
+        .padding(.bottom, 6) // 进一点下移贴近底边
     }
 
     private var isTitleEmpty: Bool {
@@ -332,7 +332,6 @@ private struct AppearancePickerSheet: View {
     @Binding var tintHex: String
     @State private var showsCustomColor = false
 
-    // 3. 读取动态预设库，与“更多颜色”Sheet 预设保持同步
     @AppStorage("user_custom_color_presets") private var customPresetsRaw: String = ""
 
     private let defaultPresets = [
@@ -357,14 +356,29 @@ private struct AppearancePickerSheet: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("颜色和图标")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .padding(.top, 4)
+        VStack(alignment: .leading, spacing: 20) {
+            // Header：移除 NavigationBar，使用与其它 Sheet 100% 同款的标题与关闭按钮
+            HStack(alignment: .center) {
+                Text("颜色和图标")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.primary)
 
-                    // 3. 动态预设色彩横向滚动条
+                Spacer()
+
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .nativeLiquidGlass(in: Circle(), interactive: true)
+            }
+
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 动态预设色彩横向滚动条
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(allPresets, id: \.self) { color in
@@ -413,6 +427,7 @@ private struct AppearancePickerSheet: View {
                     .background(Color.black.opacity(0.04), in: Capsule())
                     .clipShape(Capsule())
 
+                    // 图标网格
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 14) {
                         ForEach(icons, id: \.self) { symbol in
                             let isSelected = iconSymbol == symbol
@@ -443,28 +458,14 @@ private struct AppearancePickerSheet: View {
                     }
                     .padding(.top, 6)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
             }
-            .toolbar {
-                // 4. 与创建任务 Sheet 完全一致的关闭按钮
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.black)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .nativeLiquidGlass(in: Circle(), interactive: true)
-                }
-            }
-            .sheet(isPresented: $showsCustomColor) {
-                CustomColorSheet(tintHex: $tintHex, iconSymbol: iconSymbol)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .sheet(isPresented: $showsCustomColor) {
+            CustomColorSheet(tintHex: $tintHex, iconSymbol: iconSymbol)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 }
@@ -585,6 +586,7 @@ private struct CustomColorSheet: View {
 
             // 预设列表与指示图标 (一行 5 个)
             HStack(alignment: .top, spacing: 16) {
+                // 左侧图标指示轴
                 ZStack {
                     Rectangle()
                         .fill(Color(hex: tintHex).opacity(0.3))
@@ -592,7 +594,7 @@ private struct CustomColorSheet: View {
 
                     Circle()
                         .fill(Color(hex: tintHex))
-                        .frame(width: 52, height: 52)
+                        .frame(width: 50, height: 50)
                         .shadow(color: Color(hex: tintHex).opacity(0.3), radius: 6, y: 3)
                         .overlay {
                             Image(systemName: iconSymbol)
@@ -600,11 +602,11 @@ private struct CustomColorSheet: View {
                                 .foregroundStyle(.white)
                         }
                 }
-                .frame(width: 52)
+                .frame(width: 50)
 
-                // 2. 排列修改为一行 5 个
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5), alignment: .center, spacing: 14) {
-                    ForEach(Array(allPresets.enumerated()), id: \.element) { index, colorHex in
+                // 右侧 5 列预设网格（添加 maxWidth: .infinity 解决挤压问题）
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 36), spacing: 8), count: 5), alignment: .leading, spacing: 14) {
+                    ForEach(Array(allPresets.enumerated()), id: \.offset) { index, colorHex in
                         let isDefault = index < defaultPresets.count
                         ZStack(alignment: .topTrailing) {
                             Button {
@@ -647,10 +649,11 @@ private struct CustomColorSheet: View {
                                 .zIndex(10)
                             }
                         }
-                        .frame(maxWidth: .infinity) // 在列内居中并均匀分布，不再紧贴拥挤
+                        .frame(maxWidth: .infinity) // 单个 Cell 内部居中
                         .zIndex(isEditingPresets && !isDefault ? 10 : 1)
                     }
 
+                    // 加号新增预设按钮
                     Button {
                         withAnimation(.spring(response: 0.25)) {
                             addCustomPreset(tintHex)
@@ -671,12 +674,14 @@ private struct CustomColorSheet: View {
                     .buttonStyle(NoAnimButtonStyle())
                     .frame(maxWidth: .infinity)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading) // 核心：强制网格撑满右侧空间
             }
 
             Spacer()
         }
         .padding(.horizontal, 24)
         .padding(.top, 24)
+        .ignoresSafeArea(.keyboard) // 关键：禁用键盘自动避让，防止 Header 冲出 Sheet 顶部
         .onAppear {
             loadCustomPresets()
             hexInputText = tintHex.uppercased()
