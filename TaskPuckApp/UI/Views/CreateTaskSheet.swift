@@ -199,32 +199,9 @@ public struct CreateTaskSheet: View {
 
             Spacer()
 
-            Button {
-                showsDurationPicker.toggle()
-            } label: {
-                Text(durationDescription)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color(hex: tintHex))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    // 仿原生 DatePicker 右侧时间按钮的灰色胶囊/圆角背景
-                    .background(Color(UIColor.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("持续时间，\(durationDescription)")
-            // 点击后弹出独立 Popover 气泡框
-            .popover(isPresented: $showsDurationPicker, arrowEdge: .top) {
-                HStack(spacing: 0) {
-                    durationWheel(title: "小时", selection: durationHours, range: 0...23)
-                    durationWheel(title: "分钟", selection: durationRemainderMinutes, range: 0...59)
-                }
-                .frame(width: 220, height: 140)
-                .padding(.vertical, 8)
-                // 1. 强制 iPhone 上也以 Popover 气泡形式展示（防止变成半屏 Sheet）
-                .presentationCompactAdaptadaptation(.popover)
-                // 2. 实现系统液态玻璃/毛玻璃半透明背景
-                .presentationBackground(.ultraThinMaterial)
-            }
+            DatePicker("持续时间", selection: $durationDate, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+                .tint(Color(hex: tintHex))
         }
         .padding(.horizontal, 16)
         .frame(height: 52)
