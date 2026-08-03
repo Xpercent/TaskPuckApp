@@ -193,19 +193,37 @@ public struct CreateTaskSheet: View {
     }
 
     private var durationSetting: some View {
-        HStack {
-            Label("持续时间", systemImage: "timer")
-                .font(.system(size: 16, weight: .semibold))
+        VStack(spacing: 12) {
+            HStack {
+                Label("持续时间", systemImage: "timer")
+                    .font(.system(size: 16, weight: .semibold))
+                Spacer()
+                Button {
+                    withAnimation(.smooth(duration: 0.2)) {
+                        showsDurationPicker.toggle()
+                    }
+                } label: {
+                    Text(durationDescription)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(hex: tintHex))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("持续时间，\(durationDescription)")
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-            Spacer()
-
-            DatePicker("持续时间", selection: $durationDate, displayedComponents: .hourAndMinute)
-                .labelsHidden()
-                .tint(Color(hex: tintHex))
+            if showsDurationPicker {
+                HStack(spacing: 0) {
+                    durationWheel(title: "小时", selection: durationHours, range: 0...23)
+                    durationWheel(title: "分钟", selection: durationRemainderMinutes, range: 0...59)
+                }
+                .frame(height: 132)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 52)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func durationWheel(
