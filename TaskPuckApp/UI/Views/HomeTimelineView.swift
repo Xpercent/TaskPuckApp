@@ -50,7 +50,8 @@ public struct HomeTimelineView: View {
                 .padding(.bottom, 16)
 
                 ZStack {
-                    Color.white
+                    // 使用动态卡片背景替代硬编码 Color.white
+                    AppConstants.Colors.cardBackground
                         .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
                         .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: -5)
 
@@ -95,9 +96,10 @@ public struct HomeTimelineView: View {
                             .foregroundStyle(.secondary)
                         Text(DateUtils.dayString(from: date))
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(isSelected ? .white : AppConstants.Colors.primaryTextDark)
+                            // 选中状态采用系统主文字色作为背景，系统底色作为前景色，实现双向自动反转
+                            .foregroundStyle(isSelected ? Color(uiColor: .systemBackground) : AppConstants.Colors.primaryTextDark)
                             .frame(width: 32, height: 32)
-                            .background(isSelected ? Color.black : Color.clear, in: Circle())
+                            .background(isSelected ? Color.primary : Color.clear, in: Circle())
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -163,12 +165,13 @@ struct InteractiveTimelineRow: View {
     }
 
     var body: some View {
-        let isDone = item.instance.status == .done
+        let isDone = item.instance?.status == .done
 
         HStack(spacing: 16) {
             ZStack(alignment: .center) {
+                // 使用系统分割线颜色替代 Color.gray.opacity
                 Rectangle()
-                    .fill(Color.gray.opacity(0.18))
+                    .fill(Color(uiColor: .separator))
                     .frame(width: 2)
                     .padding(.vertical, -14)
 
@@ -188,16 +191,16 @@ struct InteractiveTimelineRow: View {
                     let duration = DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
                     Text("\(placement.startTime) - \(placement.endTime) (\(duration)分钟)")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.gray.opacity(0.8))
+                        .foregroundStyle(.secondary)
                 }
 
                 Text(item.task.title)
                     .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(isDone ? Color.gray.opacity(0.5) : AppConstants.Colors.primaryTextDark)
+                    .foregroundStyle(isDone ? Color.secondary.opacity(0.6) : AppConstants.Colors.primaryTextDark)
                     .overlay(alignment: .leading) {
                         GeometryReader { geo in
                             Rectangle()
-                                .fill(Color.gray.opacity(0.6))
+                                .fill(Color.secondary.opacity(0.6))
                                 .frame(width: isDone ? geo.size.width : 0, height: 2)
                                 .frame(maxHeight: .infinity, alignment: .center)
                                 .animation(.easeInOut(duration: 0.35), value: isDone)

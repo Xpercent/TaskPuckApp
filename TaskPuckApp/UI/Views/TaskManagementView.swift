@@ -14,6 +14,7 @@ public struct TaskManagementView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("任务管理")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppConstants.Colors.primaryTextDark)
                         .padding(.horizontal, 24)
                         .padding(.top, 16)
 
@@ -139,6 +140,8 @@ private struct ManagedTaskRow: View {
     }
 
     var body: some View {
+        let isDone = item.instance?.status == .done
+
         HStack(spacing: 12) {
             Button(action: onEdit) {
                 HStack(spacing: 12) {
@@ -151,12 +154,11 @@ private struct ManagedTaskRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(item.task.title)
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle((item.instance?.status == .done) ? Color.gray.opacity(0.5) : AppConstants.Colors.primaryTextDark)
+                            .foregroundStyle(isDone ? Color.secondary.opacity(0.6) : AppConstants.Colors.primaryTextDark)
                             .overlay(alignment: .leading) {
                                 GeometryReader { geo in
-                                    let isDone = item.instance?.status == .done
                                     Rectangle()
-                                        .fill(Color.gray.opacity(0.6))
+                                        .fill(Color.secondary.opacity(0.6))
                                         .frame(width: isDone ? geo.size.width : 0, height: 2)
                                         .frame(maxHeight: .infinity, alignment: .center)
                                         .animation(.easeInOut(duration: 0.35), value: isDone)
@@ -166,7 +168,7 @@ private struct ManagedTaskRow: View {
                         if let summary = placementSummary {
                             Text(summary)
                                 .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(Color.gray.opacity(0.8))
+                                .foregroundStyle(.secondary)
                         }
                     }
 
@@ -176,7 +178,7 @@ private struct ManagedTaskRow: View {
             .buttonStyle(.plain)
 
             TaskStatusCheckbox(
-                isDone: item.instance?.status == .done,
+                isDone: isDone,
                 tintColor: Color(hex: item.task.tintHex),
                 mode: .standard,
                 onToggle: onToggle
@@ -184,7 +186,7 @@ private struct ManagedTaskRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 

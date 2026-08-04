@@ -35,18 +35,20 @@ public enum AppConstants {
         public static let defaultThemeIcon = "paintpalette.fill"
     }
 
-    // MARK: - UI 主题颜色
+    // MARK: - UI 主题颜色 (全面重构为原生系统动态语义色，自动支持深浅模式)
     public enum Colors {
-        /// 全局统一灰色背景色
-        public static let backgroundGrey = Color(red: 0.96, green: 0.96, blue: 0.97)
-        /// 主要深色文字
-        public static let primaryTextDark = Color(red: 0.15, green: 0.15, blue: 0.2)
-        /// 次要文字颜色
-        public static let textSecondaryDark = Color(red: 0.25, green: 0.25, blue: 0.3)
-        /// 首页年份粉色
+        /// 全局统一背景色 (系统一级分组背景，深色模式下自动变暗)
+        public static let backgroundGrey = Color(uiColor: .systemGroupedBackground)
+        /// 全局卡片/容器背景色 (系统二级分组背景，浅色为纯白，深色为深灰卡片)
+        public static let cardBackground = Color(uiColor: .secondarySystemGroupedBackground)
+        /// 主要文字（自动适配深浅模式）
+        public static let primaryTextDark = Color.primary
+        /// 次要文字颜色（自动适配深浅模式）
+        public static let textSecondaryDark = Color.secondary
+        /// 首页年份粉色（动态对比度保持）
         public static let yearTextPink = Color(red: 0.93, green: 0.55, blue: 0.55)
-        /// 未到达时间的轴线/图标底色
-        public static let unreachedBg = Color(red: 0.90, green: 0.90, blue: 0.92)
+        /// 未到达时间的轴线/图标底色（系统动态灰色5）
+        public static let unreachedBg = Color(uiColor: .systemGray5)
         /// HEX 编辑器 # 前缀颜色
         public static let hexPrefixPink = Color(red: 0.9, green: 0.4, blue: 0.4)
     }

@@ -3,7 +3,7 @@ import SwiftUI
 /// 全局统一的任务状态勾选框组件
 public struct TaskStatusCheckbox: View {
     public enum Mode {
-        /// 标准模式（适合白色/浅色背景）：彩色边框，选中后彩色填充+白色对勾
+        /// 标准模式（适合浅色/卡片背景）：彩色边框，选中后彩色填充+白色对勾
         case standard
         /// 反转模式（适合主题色Header背景）：白色边框，选中后白色填充+主题色对勾
         case inverted
@@ -73,7 +73,7 @@ public struct SheetCloseButton: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.black)
+                .foregroundStyle(.primary) // 将原本硬编码的 .black 修正为动态语义色 .primary
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }

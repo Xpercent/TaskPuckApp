@@ -62,6 +62,7 @@ public struct SettingsView: View {
             VStack(alignment: .leading, spacing: 5) {
                 TextField("用户名", text: $userName)
                     .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(AppConstants.Colors.primaryTextDark)
                     .textFieldStyle(.plain)
                 Text("专注于今天要完成的事")
                     .font(.system(size: 13, weight: .medium))
@@ -71,7 +72,7 @@ public struct SettingsView: View {
             Spacer()
         }
         .padding(18)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var appearanceSection: some View {
@@ -100,7 +101,7 @@ public struct SettingsView: View {
                 }
                 .padding(.horizontal, 16)
                 .frame(height: 56)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
         }
@@ -129,7 +130,7 @@ public struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 
