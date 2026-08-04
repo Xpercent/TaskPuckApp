@@ -86,6 +86,7 @@ struct CustomColorSheet: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .overlay(alignment: .bottom) {
+            // 修正：将硬编码的黑色边框线修改为系统原生的自适应分割线颜色
             Rectangle()
                 .fill(Color(uiColor: .separator))
                 .frame(height: 1)
@@ -132,8 +133,9 @@ struct CustomColorSheet: View {
                 .font(.system(size: 14, weight: .semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
+                // 修正：使用自适应的前景透明度背景，在深色模式下自适应变亮
                 .background(
-                    isEditingPresets ? Color(uiColor: .selectedControlColor) : Color(uiColor: .tertiarySystemFill),
+                    isEditingPresets ? Color.primary.opacity(0.15) : Color.primary.opacity(0.06),
                     in: Capsule()
                 )
                 .foregroundStyle(.primary)
@@ -198,7 +200,7 @@ struct CustomColorSheet: View {
                     .overlay {
                         if tintHex.caseInsensitiveCompare(hex) == .orderedSame {
                             Circle()
-                                .stroke(Color(uiColor: .systemBackground), lineWidth: 2.5)
+                                .stroke(Color.white, lineWidth: 2.5)
                                 .shadow(color: .black.opacity(0.2), radius: 2)
                         }
                     }
@@ -350,7 +352,7 @@ private struct ColorValueSlider: View {
                     .frame(height: handleSize)
 
                 Circle()
-                    .fill(Color(uiColor: .systemBackground)) // 自适应动态系统底色替换写死的 .white
+                    .fill(.white)
                     .frame(width: handleSize, height: handleSize)
                     .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
                     .overlay {

@@ -101,7 +101,7 @@ public struct CreateTaskSheet: View {
                 } label: {
                     ZStack {
                         RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(Color.white.opacity(0.9))
+                            .fill(.white.opacity(0.9))
                             .frame(width: 64, height: 64)
                         Image(systemName: iconSymbol)
                             .font(.system(size: 28, weight: .bold))
@@ -114,7 +114,7 @@ public struct CreateTaskSheet: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(placementSummary)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.9))
+                        .foregroundStyle(.white.opacity(0.9))
                     TextField("任务名称", text: $taskTitle)
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(.white)
@@ -148,6 +148,7 @@ public struct CreateTaskSheet: View {
             }
         }
         .padding(4)
+        // 修正：采用系统动态填充色
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 
@@ -180,6 +181,7 @@ public struct CreateTaskSheet: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 52)
+        // 修正：使用全局卡片背景色
         .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
@@ -202,6 +204,7 @@ public struct CreateTaskSheet: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        // 修正：使用全局卡片背景色
         .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
@@ -214,6 +217,7 @@ public struct CreateTaskSheet: View {
             }
         }
         .padding(4)
+        // 修正：采用系统动态填充色
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 
@@ -237,6 +241,7 @@ public struct CreateTaskSheet: View {
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundStyle(isSelected ? .white : .primary)
                                 .frame(maxWidth: .infinity, minHeight: 40)
+                                // 修正：未选中时采用全局卡片背景色
                                 .background(isSelected ? Color(hex: tintHex) : AppConstants.Colors.cardBackground, in: Circle())
                         }
                         .buttonStyle(.plain)
@@ -257,6 +262,7 @@ public struct CreateTaskSheet: View {
                     monthDayButton(day: 0, title: "末")
                 }
                 .padding(12)
+                // 修正：使用全局卡片背景色
                 .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         case .dateRange:
@@ -281,7 +287,8 @@ public struct CreateTaskSheet: View {
                 .foregroundStyle(isSelected ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 34)
-                .background(isSelected ? Color(hex: tintHex) : Color(uiColor: .tertiarySystemFill), in: Circle())
+                // 修正：未选中状态使用系统自适应透明前景背景
+                .background(isSelected ? Color(hex: tintHex) : Color.primary.opacity(0.06), in: Circle())
         }
         .buttonStyle(.plain)
     }
@@ -307,6 +314,7 @@ public struct CreateTaskSheet: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 52)
+        // 修正：使用全局卡片背景色
         .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 

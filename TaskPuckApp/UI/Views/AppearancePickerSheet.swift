@@ -61,7 +61,8 @@ struct AppearancePickerSheet: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(Color(uiColor: .tertiarySystemFill))
+                            // 修正：采用二级系统自适应填充色
+                            .fill(Color(uiColor: .secondarySystemFill))
                             .frame(width: 38, height: 38)
                         Image(systemName: "ellipsis")
                             .font(.system(size: 16, weight: .bold))
@@ -74,7 +75,8 @@ struct AppearancePickerSheet: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
         }
-        .background(Color(uiColor: .secondarySystemFill), in: Capsule())
+        // 修正：采用系统动态段背景填充色，自适应深色模式
+        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
         .clipShape(Capsule())
     }
 
@@ -90,6 +92,7 @@ struct AppearancePickerSheet: View {
                 } label: {
                     ZStack {
                         Circle()
+                            // 修正：未选中时采用三级自适应系统填充色
                             .fill(Color(uiColor: .tertiarySystemFill))
                         Circle()
                             .fill(Color(hex: tintHex))
@@ -140,5 +143,64 @@ struct AppearancePickerSheet: View {
         withTransaction(transaction) {
             binding.wrappedValue = value
         }
+    }
+}
+
+struct PressScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+    }
+}
+
+enum TaskAppearance {
+    static var customPresetStorageKey: String {
+        AppConstants.StorageKeys.customColorPresets
+    }
+
+    static var defaultPresetHexes: [String] {
+        AppConstants.Appearance.defaultPresetHexes
+    }
+
+    static var iconSymbols: [String] {
+        AppConstants.Appearance.iconSymbols
+    }
+
+    private static let hexDigits = Set("0123456789ABCDEF")
+
+    static func sanitizedHexInput(_ value: String) -> String {
+        String(value.uppercased().filter { hexDigits.contains($0) }.prefix(6))
+    }
+
+    static func normalizedHex(_ value: String) -> String? {
+        let normalized = sanitizedHexInput(value)
+        return normalized.count == 6 ? normalized : nil
+    }
+
+    static func customPresetHexes(from rawValue: String) -> [String] {
+        var seen = Set(defaultPresetHexes)
+        return rawValue.split(separator: ",").compactMap { value in
+            guard let hex = normalizedHex(String(value)), seen.insert(hex).inserted else {
+                return nil
+            }
+            return hex
+        }
+    }
+
+    static func encodedCustomPresets(_ presets: [String]) -> String {
+        presets.compactMap(normalizedHex).joined(separator: ",")
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        let defaultHex = AppConstants.Appearance.defaultTintHex
+        let normalized = TaskAppearance.normalizedHex(hex) ?? defaultHex
+        let value = UInt64(normalized, radix: 16) ?? (UInt64(defaultHex, radix: 16) ?? 0xEE8C8C)
+        self.init(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
     }
 }
