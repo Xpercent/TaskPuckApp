@@ -165,7 +165,8 @@ struct InteractiveTimelineRow: View {
     }
 
     var body: some View {
-        let isDone = item.instance?.status == .done
+        // 修正：item.instance 为非可选类型，移除问号 ?
+        let isDone = item.instance.status == .done
 
         HStack(spacing: 16) {
             ZStack(alignment: .center) {
