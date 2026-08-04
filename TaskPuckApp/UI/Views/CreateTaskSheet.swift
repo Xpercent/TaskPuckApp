@@ -148,7 +148,7 @@ public struct CreateTaskSheet: View {
             }
         }
         .padding(4)
-        .background(Color.black.opacity(0.04), in: Capsule())
+        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 
     private var durationDateBinding: Binding<Date> {
@@ -180,7 +180,7 @@ public struct CreateTaskSheet: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 52)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var startTimePicker: some View {
@@ -202,7 +202,7 @@ public struct CreateTaskSheet: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var recurrencePicker: some View {
@@ -214,7 +214,7 @@ public struct CreateTaskSheet: View {
             }
         }
         .padding(4)
-        .background(Color.black.opacity(0.04), in: Capsule())
+        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 
     @ViewBuilder private var recurrenceDetail: some View {
@@ -237,7 +237,7 @@ public struct CreateTaskSheet: View {
                                 .font(.system(size: 15, weight: .bold))
                                 .foregroundStyle(isSelected ? .white : .primary)
                                 .frame(maxWidth: .infinity, minHeight: 40)
-                                .background(isSelected ? Color(hex: tintHex) : Color.white, in: Circle())
+                                .background(isSelected ? Color(hex: tintHex) : AppConstants.Colors.cardBackground, in: Circle())
                         }
                         .buttonStyle(.plain)
                     }
@@ -257,7 +257,7 @@ public struct CreateTaskSheet: View {
                     monthDayButton(day: 0, title: "末")
                 }
                 .padding(12)
-                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         case .dateRange:
             VStack(spacing: 10) {
@@ -281,7 +281,7 @@ public struct CreateTaskSheet: View {
                 .foregroundStyle(isSelected ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 34)
-                .background(isSelected ? Color(hex: tintHex) : Color.black.opacity(0.04), in: Circle())
+                .background(isSelected ? Color(hex: tintHex) : Color(uiColor: .tertiarySystemFill), in: Circle())
         }
         .buttonStyle(.plain)
     }
@@ -307,7 +307,7 @@ public struct CreateTaskSheet: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 52)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func selectionButton(

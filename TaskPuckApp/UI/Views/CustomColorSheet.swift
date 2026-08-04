@@ -87,7 +87,7 @@ struct CustomColorSheet: View {
         .padding(.vertical, 4)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color.black.opacity(0.2))
+                .fill(Color(uiColor: .separator))
                 .frame(height: 1)
         }
     }
@@ -133,7 +133,7 @@ struct CustomColorSheet: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(
-                    isEditingPresets ? Color.black.opacity(0.12) : Color.black.opacity(0.05),
+                    isEditingPresets ? Color(uiColor: .selectedControlColor) : Color(uiColor: .tertiarySystemFill),
                     in: Capsule()
                 )
                 .foregroundStyle(.primary)
@@ -198,7 +198,7 @@ struct CustomColorSheet: View {
                     .overlay {
                         if tintHex.caseInsensitiveCompare(hex) == .orderedSame {
                             Circle()
-                                .stroke(Color.white, lineWidth: 2.5)
+                                .stroke(Color(uiColor: .systemBackground), lineWidth: 2.5)
                                 .shadow(color: .black.opacity(0.2), radius: 2)
                         }
                     }
@@ -350,7 +350,7 @@ private struct ColorValueSlider: View {
                     .frame(height: handleSize)
 
                 Circle()
-                    .fill(.white)
+                    .fill(Color(uiColor: .systemBackground)) // 自适应动态系统底色替换写死的 .white
                     .frame(width: handleSize, height: handleSize)
                     .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
                     .overlay {
