@@ -51,18 +51,7 @@ struct CustomColorSheet: View {
             Spacer()
             hexEditor
             Spacer().frame(width: 8)
-
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.black)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .nativeLiquidGlass(in: Circle(), interactive: true)
+            SheetCloseButton()
         }
     }
 

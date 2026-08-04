@@ -207,22 +207,12 @@ struct InteractiveTimelineRow: View {
 
             Spacer(minLength: 8)
 
-            Button(action: onToggle) {
-                ZStack {
-                    Circle()
-                        .strokeBorder(iconBgColor, lineWidth: 3)
-                        .frame(width: 24, height: 24)
-                    if isDone {
-                        Circle()
-                            .fill(iconBgColor)
-                            .frame(width: 24, height: 24)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
+            TaskStatusCheckbox(
+                isDone: isDone,
+                tintColor: iconBgColor,
+                mode: .standard,
+                onToggle: onToggle
+            )
             .padding(.trailing, 4)
         }
     }

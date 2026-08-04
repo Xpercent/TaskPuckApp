@@ -16,7 +16,7 @@ public struct CreateTaskSheet: View {
     @State private var rangeEndDate = Date()
     @State private var selectedWeekdays: Set<Weekday> = []
     @State private var selectedMonthDays: Set<Int> = []
-    @State private var isCompleted = false
+    @State private var isDone = false
     @State private var iconSymbol = AppConstants.Appearance.defaultIconSymbol
     @State private var tintHex = AppConstants.Appearance.defaultTintHex
     @State private var showsAppearancePicker = false
@@ -90,18 +90,7 @@ public struct CreateTaskSheet: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.black)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .nativeLiquidGlass(in: Circle(), interactive: true)
-
+                SheetCloseButton()
                 Spacer()
             }
             .padding(.top, 16)
@@ -123,7 +112,6 @@ public struct CreateTaskSheet: View {
                 .accessibilityLabel("选择图标和颜色")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    // 统一命名为 placementSummary，保持与数据流一致
                     Text(placementSummary)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
@@ -133,34 +121,19 @@ public struct CreateTaskSheet: View {
                 }
 
                 Spacer()
-                completionToggle
+                TaskStatusCheckbox(
+                    isDone: isDone,
+                    tintColor: Color(hex: tintHex),
+                    mode: .inverted
+                ) {
+                    isDone.toggle()
+                }
             }
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
         .frame(height: 180)
         .background(Color(hex: tintHex))
-    }
-
-    private var completionToggle: some View {
-        Button { isCompleted.toggle() } label: {
-            ZStack {
-                Circle()
-                    .strokeBorder(Color.white, lineWidth: 3)
-                    .frame(width: 24, height: 24)
-
-                if isCompleted {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 24, height: 24)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color(hex: tintHex))
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isCompleted ? "标记为未完成" : "标记为已完成")
     }
 
     private var durationPicker: some View {
@@ -393,7 +366,6 @@ public struct CreateTaskSheet: View {
         taskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 统一使用 placementSummary 描述时间段/排期汇总
     private var placementSummary: String {
         let time = hasStartTime ? timeString : "无开始时间"
         return "\(durationDescription) · \(time)"
@@ -461,7 +433,7 @@ public struct CreateTaskSheet: View {
         onceDate = selectedDate
         rangeStartDate = selectedDate
         rangeEndDate = selectedDate
-        isCompleted = false
+        isDone = false
         hasStartTime = true
     }
 
@@ -473,7 +445,7 @@ public struct CreateTaskSheet: View {
             startTime: hasStartTime ? storedTimeString : nil,
             iconSymbol: iconSymbol,
             tintHex: tintHex,
-            initialStatus: isCompleted ? .done : .todo
+            initialStatus: isDone ? .done : .todo
         )
         dismiss()
     }
@@ -490,7 +462,7 @@ public struct CreateTaskSheet: View {
             tintHex: tintHex
         )
         if let instance = engine.managedTasks(for: .today).first(where: { $0.task.id == editingTask.id })?.instance,
-           (instance.status == .done) != isCompleted {
+           (instance.status == .done) != isDone {
             engine.toggleTaskStatus(instance: instance)
         }
         dismiss()
@@ -522,7 +494,7 @@ public struct CreateTaskSheet: View {
         taskTitle = task.title
         iconSymbol = task.iconSymbol
         tintHex = task.tintHex
-        isCompleted = editingStatus == .done
+        isDone = editingStatus == .done
 
         if let placement = task.defaultPlacement {
             selectedDurationMinutes = placement.duration

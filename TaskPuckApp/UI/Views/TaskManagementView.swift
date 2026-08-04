@@ -132,7 +132,6 @@ private struct ManagedTaskRow: View {
     let onEdit: () -> Void
     let onToggle: () -> Void
 
-    /// 统一使用 placementSummary 作为描述排期信息的标准命名
     private var placementSummary: String? {
         guard let placement = item.task.defaultPlacement else { return nil }
         guard placement.duration > 0 else { return placement.startTime }
@@ -176,23 +175,12 @@ private struct ManagedTaskRow: View {
             }
             .buttonStyle(.plain)
 
-            Button(action: onToggle) {
-                ZStack {
-                    Circle()
-                        .strokeBorder(Color(hex: item.task.tintHex), lineWidth: 3)
-                        .frame(width: 24, height: 24)
-                    if item.instance?.status == .done {
-                        Circle()
-                            .fill(Color(hex: item.task.tintHex))
-                            .frame(width: 24, height: 24)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(item.instance?.status == .done ? "标记为未完成" : "标记为已完成")
+            TaskStatusCheckbox(
+                isDone: item.instance?.status == .done,
+                tintColor: Color(hex: item.task.tintHex),
+                mode: .standard,
+                onToggle: onToggle
+            )
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
