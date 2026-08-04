@@ -2,9 +2,15 @@ import SwiftUI
 
 public struct SettingsView: View {
     @Environment(TaskEngine.self) private var engine
-    @AppStorage("app_theme_hex") private var themeHex = "EE8C8C"
-    @AppStorage("user_name") private var userName = "TaskPuck 用户"
-    @AppStorage("user_avatar_symbol") private var avatarSymbol = "person.crop.circle.fill"
+
+    @AppStorage(AppConstants.StorageKeys.appThemeHex) 
+    private var themeHex = AppConstants.Appearance.defaultTintHex
+
+    @AppStorage(AppConstants.StorageKeys.userName) 
+    private var userName = AppConstants.Profile.defaultUserName
+
+    @AppStorage(AppConstants.StorageKeys.userAvatarSymbol) 
+    private var avatarSymbol = AppConstants.Profile.defaultAvatarSymbol
 
     @State private var showsThemePicker = false
     @State private var themeDetent: PresentationDetent = .medium
@@ -22,16 +28,16 @@ public struct SettingsView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 110)
             }
-            .background(Color(red: 0.96, green: 0.96, blue: 0.97))
+            .background(AppConstants.Colors.backgroundGrey)
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showsThemePicker) {
                 CustomColorSheet(
                     tintHex: $themeHex,
-                    iconSymbol: "paintpalette.fill",
-                    presentationDetent: .constant(.medium)
+                    iconSymbol: AppConstants.Profile.defaultThemeIcon,
+                    presentationDetent: $themeDetent
                 )
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium, .large], selection: $themeDetent)
                 .presentationDragIndicator(.visible)
             }
             .alert("清空全部数据？", isPresented: $showsClearConfirmation) {
@@ -75,11 +81,11 @@ public struct SettingsView: View {
                 .foregroundStyle(.secondary)
 
             Button {
-                themeDetent = .large
+                themeDetent = .medium
                 showsThemePicker = true
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "paintpalette.fill")
+                    Image(systemName: AppConstants.Profile.defaultThemeIcon)
                         .foregroundStyle(Color(hex: themeHex))
                         .frame(width: 28)
                     Text("主题色")

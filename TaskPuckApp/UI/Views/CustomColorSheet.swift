@@ -18,7 +18,7 @@ struct CustomColorSheet: View {
     @State private var isUpdatingHexFromControls = false
     @FocusState private var isHexFieldFocused: Bool
 
-    @AppStorage(TaskAppearance.customPresetStorageKey) private var customPresetsRaw = ""
+    @AppStorage(AppConstants.StorageKeys.customColorPresets) private var customPresetsRaw = ""
 
     private var customPresets: [String] {
         TaskAppearance.customPresetHexes(from: customPresetsRaw)
@@ -70,7 +70,7 @@ struct CustomColorSheet: View {
         HStack(spacing: 4) {
             Text("#")
                 .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(Color(red: 0.9, green: 0.4, blue: 0.4))
+                .foregroundStyle(AppConstants.Colors.hexPrefixPink)
 
             TextField("HEX", text: $hexInputText)
                 .font(.system(size: 20, weight: .bold, design: .monospaced))
@@ -268,7 +268,7 @@ struct CustomColorSheet: View {
     }
 
     private func initializeColor() {
-        let normalized = TaskAppearance.normalizedHex(tintHex) ?? "EE8C8C"
+        let normalized = TaskAppearance.normalizedHex(tintHex) ?? AppConstants.Appearance.defaultTintHex
         applyHex(normalized)
     }
 

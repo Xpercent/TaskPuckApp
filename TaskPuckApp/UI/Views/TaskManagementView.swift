@@ -34,7 +34,7 @@ public struct TaskManagementView: View {
                 }
                 .padding(.bottom, 110)
             }
-            .background(Color(red: 0.96, green: 0.96, blue: 0.97))
+            .background(AppConstants.Colors.backgroundGrey)
             .navigationDestination(for: TaskManagementCategory.self) { category in
                 TaskManagementDetailView(category: category)
             }
@@ -115,7 +115,7 @@ private struct TaskManagementDetailView: View {
             .padding(.top, 20)
             .padding(.bottom, 40)
         }
-        .background(Color(red: 0.96, green: 0.96, blue: 0.97))
+        .background(AppConstants.Colors.backgroundGrey)
         .navigationTitle(category.title)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedItem) { item in
@@ -132,7 +132,8 @@ private struct ManagedTaskRow: View {
     let onEdit: () -> Void
     let onToggle: () -> Void
 
-    private var placementText: String? {
+    /// 统一使用 placementSummary 作为描述排期信息的标准命名
+    private var placementSummary: String? {
         guard let placement = item.task.defaultPlacement else { return nil }
         guard placement.duration > 0 else { return placement.startTime }
         return "\(placement.startTime) · \(placement.duration) 分钟"
@@ -140,7 +141,6 @@ private struct ManagedTaskRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 左侧：任务信息（点击空白处和文字均可编辑）
             Button(action: onEdit) {
                 HStack(spacing: 12) {
                     Image(systemName: item.task.iconSymbol)
@@ -152,7 +152,7 @@ private struct ManagedTaskRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(item.task.title)
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle((item.instance?.status == .done) ? Color.gray.opacity(0.5) : Color(red: 0.15, green: 0.15, blue: 0.2))
+                            .foregroundStyle((item.instance?.status == .done) ? Color.gray.opacity(0.5) : AppConstants.Colors.primaryTextDark)
                             .overlay(alignment: .leading) {
                                 GeometryReader { geo in
                                     let isDone = item.instance?.status == .done
@@ -162,22 +162,20 @@ private struct ManagedTaskRow: View {
                                         .frame(maxHeight: .infinity, alignment: .center)
                                         .animation(.easeInOut(duration: 0.35), value: isDone)
                                 }
-                        }
+                            }
 
-                        // 👇 修改这里：直接使用已经写好的 placementText，避免属性名拼错
-                        if let text = placementText {
-                            Text(text)
+                        if let summary = placementSummary {
+                            Text(summary)
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(Color.gray.opacity(0.8))
                         }
                     }
 
-                    Spacer(minLength: 8) // 撑开中间空白，把勾选框推到最右边
+                    Spacer(minLength: 8)
                 }
             }
             .buttonStyle(.plain)
 
-            // 右侧：勾选框
             Button(action: onToggle) {
                 ZStack {
                     Circle()
@@ -204,35 +202,14 @@ private struct ManagedTaskRow: View {
 
 private extension TaskManagementCategory {
     var title: String {
-        switch self {
-        case .today: "今天"
-        case .daily: "每日"
-        case .weekly: "每周"
-        case .monthly: "每月"
-        case .dateRange: "日期范围"
-        case .once: "仅一次"
-        }
+        AppConstants.Categories.title(for: self)
     }
 
     var iconSymbol: String {
-        switch self {
-        case .today: "calendar"
-        case .daily: "arrow.triangle.2.circlepath"
-        case .weekly: "calendar.badge.clock"
-        case .monthly: "calendar"
-        case .dateRange: "calendar.badge.plus"
-        case .once: "1.circle"
-        }
+        AppConstants.Categories.iconSymbol(for: self)
     }
 
     var colorHex: String {
-        switch self {
-        case .today: "4F83CC"
-        case .daily: "2C8B73"
-        case .weekly: "8D3F68"
-        case .monthly: "D58A3A"
-        case .dateRange: "6E6AAE"
-        case .once: "D05D69"
-        }
+        AppConstants.Categories.colorHex(for: self)
     }
 }

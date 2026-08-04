@@ -8,7 +8,7 @@ struct AppearancePickerSheet: View {
 
     @State private var showsCustomColor = false
     @State private var customColorDetent: PresentationDetent = .medium
-    @AppStorage(TaskAppearance.customPresetStorageKey) private var customPresetsRaw = ""
+    @AppStorage(AppConstants.StorageKeys.customColorPresets) private var customPresetsRaw = ""
 
     private var allPresets: [String] {
         TaskAppearance.defaultPresetHexes + TaskAppearance.customPresetHexes(from: customPresetsRaw)
@@ -162,19 +162,17 @@ struct PressScaleButtonStyle: ButtonStyle {
 }
 
 enum TaskAppearance {
-    static let customPresetStorageKey = "user_custom_color_presets"
+    static var customPresetStorageKey: String {
+        AppConstants.StorageKeys.customColorPresets
+    }
 
-    static let defaultPresetHexes = [
-        "F49898", "FF9D73", "E0A800", "8CBD68",
-        "5E86A8", "1A8B6B", "8D3F68", "2C4A6F",
-        "000000"
-    ]
+    static var defaultPresetHexes: [String] {
+        AppConstants.Appearance.defaultPresetHexes
+    }
 
-    static let iconSymbols = [
-        "checklist", "alarm.fill", "book.fill", "calendar", "bell.fill",
-        "heart.fill", "star.fill", "figure.run", "fork.knife", "moon.fill",
-        "house.fill", "briefcase.fill", "flame.fill", "drop.fill", "leaf.fill"
-    ]
+    static var iconSymbols: [String] {
+        AppConstants.Appearance.iconSymbols
+    }
 
     private static let hexDigits = Set("0123456789ABCDEF")
 
@@ -204,8 +202,9 @@ enum TaskAppearance {
 
 extension Color {
     init(hex: String) {
-        let normalized = TaskAppearance.normalizedHex(hex) ?? "EE8C8C"
-        let value = UInt64(normalized, radix: 16) ?? 0xEE8C8C
+        let defaultHex = AppConstants.Appearance.defaultTintHex
+        let normalized = TaskAppearance.normalizedHex(hex) ?? defaultHex
+        let value = UInt64(normalized, radix: 16) ?? (UInt64(defaultHex, radix: 16) ?? 0xEE8C8C)
         self.init(
             red: Double((value >> 16) & 0xFF) / 255,
             green: Double((value >> 8) & 0xFF) / 255,

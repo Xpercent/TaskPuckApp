@@ -17,8 +17,8 @@ public struct CreateTaskSheet: View {
     @State private var selectedWeekdays: Set<Weekday> = []
     @State private var selectedMonthDays: Set<Int> = []
     @State private var isCompleted = false
-    @State private var iconSymbol = "checklist"
-    @State private var tintHex = "EE8C8C"
+    @State private var iconSymbol = AppConstants.Appearance.defaultIconSymbol
+    @State private var tintHex = AppConstants.Appearance.defaultTintHex
     @State private var showsAppearancePicker = false
 
     private let editingTask: TaskEntity?
@@ -34,24 +34,13 @@ public struct CreateTaskSheet: View {
         self.editingStatus = status
     }
 
-    private let durationOptions = [
-        DurationOption(title: "无", minutes: 0),
-        DurationOption(title: "15m", minutes: 15),
-        DurationOption(title: "30m", minutes: 30),
-        DurationOption(title: "45m", minutes: 45),
-        DurationOption(title: "1h", minutes: 60),
-        DurationOption(title: "1.5h", minutes: 90)
-    ]
+    private var durationOptions: [DurationOption] {
+        AppConstants.TaskForm.durationOptions
+    }
 
-    private let weekdayOptions = [
-        WeekdayOption(weekday: .sun, title: "日"),
-        WeekdayOption(weekday: .mon, title: "一"),
-        WeekdayOption(weekday: .tue, title: "二"),
-        WeekdayOption(weekday: .wed, title: "三"),
-        WeekdayOption(weekday: .thu, title: "四"),
-        WeekdayOption(weekday: .fri, title: "五"),
-        WeekdayOption(weekday: .sat, title: "六")
-    ]
+    private var weekdayOptions: [WeekdayOption] {
+        AppConstants.TaskForm.weekdayOptions
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -88,7 +77,7 @@ public struct CreateTaskSheet: View {
                 createButton
             }
         }
-        .background(Color(red: 0.96, green: 0.96, blue: 0.97))
+        .background(AppConstants.Colors.backgroundGrey)
         .ignoresSafeArea(.keyboard)
         .onAppear(perform: initializeForm)
         .sheet(isPresented: $showsAppearancePicker) {
@@ -134,7 +123,8 @@ public struct CreateTaskSheet: View {
                 .accessibilityLabel("选择图标和颜色")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(headerSummaryText)
+                    // 统一命名为 placementSummary，保持与数据流一致
+                    Text(placementSummary)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.9))
                     TextField("任务名称", text: $taskTitle)
@@ -153,7 +143,7 @@ public struct CreateTaskSheet: View {
     }
 
     private var completionToggle: some View {
-        Button {isCompleted.toggle()} label: {
+        Button { isCompleted.toggle() } label: {
             ZStack {
                 Circle()
                     .strokeBorder(Color.white, lineWidth: 3)
@@ -172,7 +162,6 @@ public struct CreateTaskSheet: View {
         .buttonStyle(.plain)
         .accessibilityLabel(isCompleted ? "标记为未完成" : "标记为已完成")
     }
-
 
     private var durationPicker: some View {
         HStack(spacing: 4) {
@@ -221,22 +210,6 @@ public struct CreateTaskSheet: View {
         .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private func durationWheel(
-        title: String,
-        selection: Binding<Int>,
-        range: ClosedRange<Int>
-    ) -> some View {
-        Picker(title, selection: selection) {
-            ForEach(range, id: \.self) { value in
-                Text("\(value)\(title == "小时" ? "小时" : "分")")
-                    .tag(value)
-            }
-        }
-        .pickerStyle(.wheel)
-        .frame(maxWidth: .infinity)
-        .clipped()
-    }
-
     private var startTimePicker: some View {
         HStack(spacing: 12) {
             Label("开始时间", systemImage: "clock")
@@ -247,8 +220,8 @@ public struct CreateTaskSheet: View {
             DatePicker("开始时间", selection: $startTime, displayedComponents: .hourAndMinute)
                 .labelsHidden()
                 .tint(Color(hex: tintHex))
-                .opacity(hasStartTime ? 1 : 0)  // 关掉时不显示数据（隐藏内容但保留占用空间）
-                .disabled(!hasStartTime)        // 关掉时无法点击交互
+                .opacity(hasStartTime ? 1 : 0)
+                .disabled(!hasStartTime)
 
             Toggle("", isOn: $hasStartTime)
                 .labelsHidden()
@@ -376,7 +349,7 @@ public struct CreateTaskSheet: View {
         } label: {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isSelected ? .white : Color(red: 0.25, green: 0.25, blue: 0.3))
+                .foregroundStyle(isSelected ? .white : AppConstants.Colors.textSecondaryDark)
                 .frame(maxWidth: .infinity)
                 .frame(height: 40)
                 .background(isSelected ? Color(hex: tintHex) : .clear, in: Capsule())
@@ -409,7 +382,7 @@ public struct CreateTaskSheet: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
                 .background(
-                    isDisabled ? color.lighterColor() : color,// 当 isDisabled 为 true 时调用 .lighterColor 变浅，删除按钮不受影响
+                    isDisabled ? color.lighterColor() : color,
                     in: Capsule()
                 )
         }
@@ -420,7 +393,8 @@ public struct CreateTaskSheet: View {
         taskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var headerSummaryText: String {
+    /// 统一使用 placementSummary 描述时间段/排期汇总
+    private var placementSummary: String {
         let time = hasStartTime ? timeString : "无开始时间"
         return "\(durationDescription) · \(time)"
     }
@@ -592,20 +566,6 @@ public struct CreateTaskSheet: View {
             of: Date()
         ) ?? Date()
     }
-}
-
-private struct DurationOption: Identifiable {
-    let title: String
-    let minutes: Int
-
-    var id: Int { minutes }
-}
-
-private struct WeekdayOption: Identifiable {
-    let weekday: Weekday
-    let title: String
-
-    var id: Weekday { weekday }
 }
 
 private enum RecurrenceOption: CaseIterable, Hashable, Identifiable {
