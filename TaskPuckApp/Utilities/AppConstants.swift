@@ -116,7 +116,7 @@ public enum AppConstants {
 }
 
 // MARK: - 表单辅助模型
-public struct DurationOption: Identifiable {
+public struct DurationOption: Identifiable, Sendable {
     public let title: String
     public let minutes: Int
     public var id: Int { minutes }
@@ -127,7 +127,7 @@ public struct DurationOption: Identifiable {
     }
 }
 
-public struct WeekdayOption: Identifiable {
+public struct WeekdayOption: Identifiable, @unchecked Sendable {
     public let weekday: Weekday
     public let title: String
     public var id: Weekday { weekday }
