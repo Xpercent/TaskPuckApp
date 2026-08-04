@@ -35,22 +35,22 @@ public enum AppConstants {
         public static let defaultThemeIcon = "paintpalette.fill"
     }
 
-    // MARK: - UI 主题颜色 (全面重构为原生系统动态语义色，自动支持深浅模式)
+    // MARK: - UI 主题颜色 (使用 static var 计算属性，安全兼容 LiveContainer 动态加载)
     public enum Colors {
-        /// 全局统一背景色 (系统一级分组背景，深色模式下自动变暗)
-        public static let backgroundGrey = Color(uiColor: .systemGroupedBackground)
-        /// 全局卡片/容器背景色 (系统二级分组背景，浅色为纯白，深色为深灰卡片)
-        public static let cardBackground = Color(uiColor: .secondarySystemGroupedBackground)
-        /// 主要文字（自动适配深浅模式）
-        public static let primaryTextDark = Color.primary
-        /// 次要文字颜色（自动适配深浅模式）
-        public static let textSecondaryDark = Color.secondary
-        /// 首页年份粉色（动态对比度保持）
-        public static let yearTextPink = Color(red: 0.93, green: 0.55, blue: 0.55)
-        /// 未到达时间的轴线/图标底色（系统动态灰色5）
-        public static let unreachedBg = Color(uiColor: .systemGray5)
+        /// 全局统一背景色
+        public static var backgroundGrey: Color { Color(uiColor: .systemGroupedBackground) }
+        /// 全局卡片/容器背景色
+        public static var cardBackground: Color { Color(uiColor: .secondarySystemGroupedBackground) }
+        /// 主要文字
+        public static var primaryTextDark: Color { Color.primary }
+        /// 次要文字颜色
+        public static var textSecondaryDark: Color { Color.secondary }
+        /// 首页年份粉色
+        public static var yearTextPink: Color { Color(red: 0.93, green: 0.55, blue: 0.55) }
+        /// 未到达时间的轴线/图标底色
+        public static var unreachedBg: Color { Color(uiColor: .systemGray5) }
         /// HEX 编辑器 # 前缀颜色
-        public static let hexPrefixPink = Color(red: 0.9, green: 0.4, blue: 0.4)
+        public static var hexPrefixPink: Color { Color(red: 0.9, green: 0.4, blue: 0.4) }
     }
 
     // MARK: - 表单选项定义

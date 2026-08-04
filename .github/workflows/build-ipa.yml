@@ -20,13 +20,11 @@ jobs:
       - name: Show Xcode Version Info
         run: xcodebuild -version
 
-      - name: Generate Xcode Project if missing
+      - name: Generate Xcode Project
         run: |
-          if [ ! -d "TaskPuckApp.xcodeproj" ]; then
-            echo "TaskPuckApp.xcodeproj not found, installing xcodegen..."
-            brew install xcodegen
-            xcodegen generate
-          fi
+          echo "Installing xcodegen and generating project..."
+          brew install xcodegen
+          xcodegen generate
 
       - name: Build Archive (.xcarchive)
         run: |
@@ -60,8 +58,13 @@ jobs:
           # 4. 校验 IPA 目录结构
           zipinfo -1 TaskPuckApp.ipa | grep -Eq '^Payload/[^/]+\.app/Info\.plist$'
 
-          # 5. 深度校验：验证 Info.plist 内部是否包含可执行文件名称 (CFBundleExecutable)
-          unzip -p TaskPuckApp.ipa "Payload/*.app/Info.plist" | plutil -p - | grep -q "CFBundleExecutable" || (echo "错误：Info.plist 缺失 CFBundleExecutable 字段！" && exit 1)
+          # 5. 深度校验：校验 LiveContainer 必须的 CFBundleExecutable 是否已正确展开
+          EXEC_NAME=$(unzip -p TaskPuckApp.ipa "Payload/*.app/Info.plist" | plutil -extract CFBundleExecutable raw -)
+          echo "Parsed CFBundleExecutable: $EXEC_NAME"
+          if [ "$EXEC_NAME" = "\$(EXECUTABLE_NAME)" ] || [ -z "$EXEC_NAME" ]; then
+            echo "错误：Info.plist 里的 CFBundleExecutable 含有未展开的占位符！"
+            exit 1
+          fi
 
           mv TaskPuckApp.ipa $RUNNER_TEMP/Export/
 

@@ -14,20 +14,22 @@ targets:
       path: TaskPuckApp/Info.plist
       properties:
         CFBundleDisplayName: "TaskPuck"
-        CFBundleExecutable: "$(EXECUTABLE_NAME)"
+        CFBundleExecutable: "TaskPuckApp"
         CFBundleIdentifier: "$(PRODUCT_BUNDLE_IDENTIFIER)"
-        CFBundleName: "$(PRODUCT_NAME)"
+        CFBundleName: "TaskPuckApp"
         CFBundlePackageType: "APPL"
         CFBundleShortVersionString: "1.0.0"
         CFBundleVersion: "1"
+        MinimumOSVersion: "17.0"
+        CFBundleSupportedPlatforms:
+          - iPhoneOS
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
     settings:
       base:
-        GENERATE_INFOPLIST: "NO" # 关闭冲突的自动生成标志，完全交由 XcodeGen 管理 Info.plist
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: "YES"
-        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+        GENERATE_INFOPLIST: "NO"
+        INFOPLIST_PREPROCESS: "YES"
         SWIFT_VERSION: "6.0"
         PRODUCT_BUNDLE_IDENTIFIER: com.taskpuck.app
         CODE_SIGNING_ALLOWED: "NO"
