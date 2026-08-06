@@ -119,7 +119,8 @@ public struct ContinuousFormSlider: View {
                         Text(option.title)
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(AppConstants.Colors.textSecondaryDark)
-                            .frame(maxWidth: .infinity, height: 40)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
                     }
                 }
                 Capsule()
