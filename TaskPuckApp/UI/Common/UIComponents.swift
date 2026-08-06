@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 全局统一的任务状态勾选框组件
 public struct TaskStatusCheckbox: View {
@@ -27,7 +28,10 @@ public struct TaskStatusCheckbox: View {
     }
 
     public var body: some View {
-        Button(action: onToggle) {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            onToggle()
+        } label: {
             ZStack {
                 Circle()
                     .strokeBorder(borderColor, lineWidth: 3)
@@ -79,5 +83,131 @@ public struct SheetCloseButton: View {
         }
         .buttonStyle(.plain)
         .nativeLiquidGlass(in: Circle(), interactive: true)
+    }
+}
+
+public struct ContinuousFormSlider: View {
+    @Binding private var value: Int
+    private let options: [DurationOption]
+    private let tintColor: Color
+    private let valueTitle: (Int) -> String
+    @State private var lastFeedbackValue: Int?
+
+    public init(
+        value: Binding<Int>,
+        options: [DurationOption],
+        tintColor: Color,
+        valueTitle: @escaping (Int) -> String
+    ) {
+        self._value = value
+        self.options = options
+        self.tintColor = tintColor
+        self.valueTitle = valueTitle
+    }
+
+    public var body: some View {
+        GeometryReader { geometry in
+            let thumbDiameter: CGFloat = 40
+            let trackWidth = max(geometry.size.width - thumbDiameter, 1)
+            let maximum = max(options.last?.minutes ?? 0, 1)
+            let progress = min(max(Double(value) / Double(maximum), 0), 1)
+
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color(uiColor: .tertiarySystemFill))
+                HStack(spacing: 0) {
+                    ForEach(options) { option in
+                        Text(option.title)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppConstants.Colors.textSecondaryDark)
+                            .frame(maxWidth: .infinity, height: 40)
+                    }
+                }
+                Capsule()
+                    .fill(tintColor)
+                    .frame(width: thumbDiameter, height: 40)
+                    .overlay {
+                        Text(valueTitle(value))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                            .padding(.horizontal, 4)
+                    }
+                    .offset(x: trackWidth * progress)
+            }
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let normalized = min(max((gesture.location.x - thumbDiameter / 2) / trackWidth, 0), 1)
+                        let newValue = Int((normalized * Double(maximum)).rounded())
+                        guard newValue != value else { return }
+                        value = newValue
+                        if lastFeedbackValue != newValue {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            lastFeedbackValue = newValue
+                        }
+                    }
+                    .onEnded { _ in lastFeedbackValue = nil }
+            )
+        }
+        .frame(height: 40)
+    }
+}
+
+public struct DiscreteFormSlider: View {
+    @Binding private var selectedIndex: Int
+    private let titles: [String]
+    private let tintColor: Color
+    @State private var lastFeedbackIndex: Int?
+
+    public init(selectedIndex: Binding<Int>, titles: [String], tintColor: Color) {
+        self._selectedIndex = selectedIndex
+        self.titles = titles
+        self.tintColor = tintColor
+    }
+
+    public var body: some View {
+        GeometryReader { geometry in
+            let count = max(titles.count, 1)
+            let itemWidth = geometry.size.width / CGFloat(count)
+            let index = min(max(selectedIndex, 0), count - 1)
+
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color(uiColor: .tertiarySystemFill))
+                Capsule()
+                    .fill(tintColor)
+                    .frame(width: itemWidth, height: 40)
+                    .offset(x: CGFloat(index) * itemWidth)
+
+                HStack(spacing: 0) {
+                    ForEach(Array(titles.enumerated()), id: \.offset) { offset, title in
+                        Text(title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(offset == index ? .white : AppConstants.Colors.textSecondaryDark)
+                            .frame(width: itemWidth, height: 40)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                }
+            }
+            .frame(height: 40)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let index = min(max(Int(gesture.location.x / max(itemWidth, 1)), 0), count - 1)
+                        guard index != selectedIndex else { return }
+                        selectedIndex = index
+                        if lastFeedbackIndex != index {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            lastFeedbackIndex = index
+                        }
+                    }
+                    .onEnded { _ in lastFeedbackIndex = nil }
+            )
+        }
+        .frame(height: 40)
     }
 }

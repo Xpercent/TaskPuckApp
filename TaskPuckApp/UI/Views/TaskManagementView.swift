@@ -9,6 +9,7 @@ public struct TaskManagementView: View {
     ]
 
     public var body: some View {
+        let _ = engine.dataVersion
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 20) {
@@ -92,6 +93,7 @@ private struct TaskManagementDetailView: View {
     }
 
     var body: some View {
+        let _ = engine.dataVersion
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 10) {
                 if items.isEmpty {

@@ -19,6 +19,8 @@ public struct TaskOverviewStats: Equatable {
 }
 
 public enum TaskManagementCategory: CaseIterable, Hashable, Identifiable {
+    case all
+    case archived
     case today
     case daily
     case weekly
@@ -43,6 +45,7 @@ public final class TaskEngine {
     public var selectedDateString: String
     public var isReadOnly: Bool = false
     public var toastMessage: String?
+    public private(set) var dataVersion = 0
 
     public init(modelContext: ModelContext, initialDate: String = DateUtils.todayString()) {
         self.modelContext = modelContext
@@ -96,6 +99,7 @@ public final class TaskEngine {
             }
         }
         try? modelContext.save()
+        notifyDataChanged()
     }
 
     private func matchesRecurrence(rules: [RecurrenceRule], targetDate: String, weekdayIndex: Int) -> Bool {
@@ -149,6 +153,7 @@ public final class TaskEngine {
             instance.currentDate = today
         }
         try? modelContext.save()
+        notifyDataChanged()
     }
 
     public func getTaskStack(for targetDate: String) -> [DisplayTimelineItem] {
@@ -214,6 +219,12 @@ public final class TaskEngine {
 
         let tasks: [TaskEntity]
         switch category {
+        case .all:
+            tasks = (try? modelContext.fetch(FetchDescriptor<TaskEntity>())) ?? []
+        case .archived:
+            tasks = activeTasks.filter { task in
+                instancesByTaskID[task.id]?.status == .done
+            }
         case .today:
             let taskIDs = Set(instances.map(\.taskId))
             tasks = activeTasks.filter { taskIDs.contains($0.id) }
@@ -237,6 +248,7 @@ public final class TaskEngine {
         }
         instance.status = (instance.status == .done) ? .todo : .done
         try? modelContext.save()
+        notifyDataChanged()
     }
 
     public func createNewTask(
@@ -280,6 +292,7 @@ public final class TaskEngine {
         }
 
         try? modelContext.save()
+        notifyDataChanged()
     }
 
     public func updateTask(
@@ -307,6 +320,7 @@ public final class TaskEngine {
             updatePlacement(for: instance, startTime: startTime, durationMinutes: durationMinutes)
         }
         try? modelContext.save()
+        notifyDataChanged()
     }
 
     public func deleteTask(_ task: TaskEntity) {
@@ -321,6 +335,7 @@ public final class TaskEngine {
         }
         modelContext.delete(task)
         try? modelContext.save()
+        notifyDataChanged()
     }
 
     public func clearAllData() {
@@ -328,6 +343,7 @@ public final class TaskEngine {
         fetchAll(TaskInstanceEntity.self).forEach(modelContext.delete)
         fetchAll(TaskEntity.self).forEach(modelContext.delete)
         try? modelContext.save()
+        notifyDataChanged()
     }
 
     public func initializeSampleData() {
@@ -348,6 +364,10 @@ public final class TaskEngine {
     private func fetchActiveTasks() -> [TaskEntity] {
         let descriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { !$0.isArchived })
         return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func notifyDataChanged() {
+        dataVersion &+= 1
     }
 
     private func fetchInstances(for date: String) -> [TaskInstanceEntity] {

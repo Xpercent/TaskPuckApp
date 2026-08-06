@@ -4,6 +4,7 @@ import SwiftUI
 public struct CreateTaskSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(TaskEngine.self) private var engine
+    @AppStorage(AppConstants.StorageKeys.appThemeHex) private var themeHex = AppConstants.Appearance.defaultTintHex
 
     @State private var taskTitle = ""
     @State private var selectedDurationMinutes = 0
@@ -20,6 +21,9 @@ public struct CreateTaskSheet: View {
     @State private var iconSymbol = AppConstants.Appearance.defaultIconSymbol
     @State private var tintHex = AppConstants.Appearance.defaultTintHex
     @State private var showsAppearancePicker = false
+    @AppStorage(AppConstants.StorageKeys.lastDurationMinutes) private var lastDurationMinutes = 0
+    @AppStorage(AppConstants.StorageKeys.lastHasStartTime) private var lastHasStartTime = true
+    @AppStorage(AppConstants.StorageKeys.lastRecurrenceIndex) private var lastRecurrenceIndex = 0
 
     private let editingTask: TaskEntity?
     private let editingStatus: InstanceStatus
@@ -80,6 +84,18 @@ public struct CreateTaskSheet: View {
         .background(AppConstants.Colors.backgroundGrey)
         .ignoresSafeArea(.keyboard)
         .onAppear(perform: initializeForm)
+        .onChange(of: selectedDurationMinutes) { _, value in
+            guard editingTask == nil else { return }
+            lastDurationMinutes = value
+        }
+        .onChange(of: hasStartTime) { _, value in
+            guard editingTask == nil else { return }
+            lastHasStartTime = value
+        }
+        .onChange(of: selectedRecurrence) { _, value in
+            guard editingTask == nil else { return }
+            lastRecurrenceIndex = RecurrenceOption.allCases.firstIndex(of: value) ?? 0
+        }
         .sheet(isPresented: $showsAppearancePicker) {
             AppearancePickerSheet(iconSymbol: $iconSymbol, tintHex: $tintHex)
                 .presentationDetents([.medium, .large])
@@ -137,16 +153,14 @@ public struct CreateTaskSheet: View {
     }
 
     private var durationPicker: some View {
-        HStack(spacing: 4) {
-            ForEach(durationOptions) { option in
-                selectionButton(
-                    title: option.title,
-                    isSelected: selectedDurationMinutes == option.minutes
-                ) {
-                    selectedDurationMinutes = option.minutes
-                }
+        ContinuousFormSlider(
+            value: $selectedDurationMinutes,
+            options: durationOptions,
+            tintColor: Color(hex: tintHex),
+            valueTitle: { minutes in
+                minutes == 0 ? "0m" : (minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m")
             }
-        }
+        )
         .padding(4)
         // 修正：采用系统动态填充色
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
@@ -209,13 +223,11 @@ public struct CreateTaskSheet: View {
     }
 
     private var recurrencePicker: some View {
-        HStack(spacing: 4) {
-            ForEach(RecurrenceOption.allCases) { option in
-                selectionButton(title: option.title, isSelected: selectedRecurrence == option) {
-                    selectedRecurrence = option
-                }
-            }
-        }
+        DiscreteFormSlider(
+            selectedIndex: recurrenceIndex,
+            titles: RecurrenceOption.allCases.map(\.title),
+            tintColor: Color(hex: tintHex)
+        )
         .padding(4)
         // 修正：采用系统动态填充色
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
@@ -442,7 +454,12 @@ public struct CreateTaskSheet: View {
         rangeStartDate = selectedDate
         rangeEndDate = selectedDate
         isDone = false
-        hasStartTime = true
+        tintHex = themeHex
+        selectedDurationMinutes = lastDurationMinutes
+        hasStartTime = lastHasStartTime
+        if RecurrenceOption.allCases.indices.contains(lastRecurrenceIndex) {
+            selectedRecurrence = RecurrenceOption.allCases[lastRecurrenceIndex]
+        }
     }
 
     private func createTask() {
@@ -455,6 +472,7 @@ public struct CreateTaskSheet: View {
             tintHex: tintHex,
             initialStatus: isDone ? .done : .todo
         )
+        rememberFormPreferences()
         dismiss()
     }
 
@@ -496,6 +514,19 @@ public struct CreateTaskSheet: View {
         } else {
             selectedMonthDays.insert(day)
         }
+    }
+
+    private var recurrenceIndex: Binding<Int> {
+        Binding(
+            get: { RecurrenceOption.allCases.firstIndex(of: selectedRecurrence) ?? 0 },
+            set: { selectedRecurrence = RecurrenceOption.allCases[$0] }
+        )
+    }
+
+    private func rememberFormPreferences() {
+        lastDurationMinutes = selectedDurationMinutes
+        lastHasStartTime = hasStartTime
+        lastRecurrenceIndex = RecurrenceOption.allCases.firstIndex(of: selectedRecurrence) ?? 0
     }
 
     private func load(_ task: TaskEntity) {

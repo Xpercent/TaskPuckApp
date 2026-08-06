@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct HomeTimelineView: View {
     @Environment(TaskEngine.self) private var engine
+    @AppStorage(AppConstants.StorageKeys.appThemeHex) private var themeHex = AppConstants.Appearance.defaultTintHex
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var visibleWeekOffset = 0
 
@@ -9,6 +10,7 @@ public struct HomeTimelineView: View {
     private let calendar = DateUtils.calendar
 
     public var body: some View {
+        let _ = engine.dataVersion
         ZStack {
             AppConstants.Colors.backgroundGrey.ignoresSafeArea()
 
@@ -17,7 +19,7 @@ public struct HomeTimelineView: View {
                     HStack(spacing: 4) {
                         Text(DateUtils.yearString(from: selectedDate))
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(AppConstants.Colors.yearTextPink)
+                            .foregroundStyle(Color(hex: themeHex))
                         Text(DateUtils.monthDayString(from: selectedDate))
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundStyle(AppConstants.Colors.primaryTextDark)
@@ -63,7 +65,6 @@ public struct HomeTimelineView: View {
                                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                                         engine.toggleTaskStatus(instance: item.instance)
                                     }
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 }
                             }
                         }
@@ -72,6 +73,14 @@ public struct HomeTimelineView: View {
                         .padding(.bottom, 120)
                     }
                 }
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 30)
+                        .onEnded { gesture in
+                            guard abs(gesture.translation.width) > abs(gesture.translation.height) else { return }
+                            selectAdjacentDate(days: gesture.translation.width < 0 ? 1 : -1)
+                        }
+                )
                 .ignoresSafeArea(edges: .bottom)
             }
         }
@@ -84,11 +93,7 @@ public struct HomeTimelineView: View {
                 let date = calendar.date(byAdding: .day, value: dayOffset, to: start) ?? start
                 let isSelected = calendar.isDate(date, inSameDayAs: selectedDate)
                 Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        selectedDate = date
-                    }
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    engine.selectDate(DateUtils.string(from: date))
+                    selectTimelineDate(date)
                 } label: {
                     VStack(spacing: 8) {
                         Text(DateUtils.weekdayString(from: date))
@@ -99,7 +104,7 @@ public struct HomeTimelineView: View {
                             // 选中状态采用系统主文字色作为背景，系统底色作为前景色，实现双向自动反转
                             .foregroundStyle(isSelected ? Color(uiColor: .systemBackground) : AppConstants.Colors.primaryTextDark)
                             .frame(width: 32, height: 32)
-                            .background(isSelected ? Color.primary : Color.clear, in: Circle())
+                            .background(isSelected ? Color(hex: themeHex) : Color.clear, in: Circle())
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -109,6 +114,21 @@ public struct HomeTimelineView: View {
             }
         }
         .padding(.horizontal, 20)
+    }
+
+    private func selectAdjacentDate(days: Int) {
+        guard let date = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        selectTimelineDate(date)
+    }
+
+    private func selectTimelineDate(_ date: Date) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            selectedDate = date
+        }
+        let currentWeek = DateUtils.startOfWeek(containing: Date())
+        visibleWeekOffset = calendar.dateComponents([.weekOfYear], from: currentWeek, to: DateUtils.startOfWeek(containing: date)).weekOfYear ?? 0
+        engine.selectDate(DateUtils.string(from: date))
     }
 }
 

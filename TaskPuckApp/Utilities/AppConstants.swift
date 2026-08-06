@@ -8,6 +8,9 @@ public enum AppConstants {
         public static let appThemeHex = "app_theme_hex"
         public static let userName = "user_name"
         public static let userAvatarSymbol = "user_avatar_symbol"
+        public static let lastDurationMinutes = "task_form_last_duration_minutes"
+        public static let lastHasStartTime = "task_form_last_has_start_time"
+        public static let lastRecurrenceIndex = "task_form_last_recurrence_index"
     }
 
     // MARK: - 任务外观与预设配置
@@ -84,6 +87,8 @@ public enum AppConstants {
     public enum Categories {
         public static func title(for category: TaskManagementCategory) -> String {
             switch category {
+            case .all: "全部任务"
+            case .archived: "归档任务（已完成任务）"
             case .today: "今天"
             case .daily: "每日"
             case .weekly: "每周"
@@ -95,6 +100,8 @@ public enum AppConstants {
 
         public static func iconSymbol(for category: TaskManagementCategory) -> String {
             switch category {
+            case .all: "checklist"
+            case .archived: "archivebox.fill"
             case .today: "calendar"
             case .daily: "arrow.triangle.2.circlepath"
             case .weekly: "calendar.badge.clock"
@@ -106,6 +113,8 @@ public enum AppConstants {
 
         public static func colorHex(for category: TaskManagementCategory) -> String {
             switch category {
+            case .all: "4F83CC"
+            case .archived: "6B7280"
             case .today: "4F83CC"
             case .daily: "2C8B73"
             case .weekly: "8D3F68"
