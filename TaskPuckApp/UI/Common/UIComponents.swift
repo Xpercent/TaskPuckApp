@@ -98,7 +98,7 @@ public struct SnappingFormSlider: View {
     private let currentValue: Int?
     private let valueTitle: String?
     /// 整体滑轨外框高度
-    private let sliderHeight: CGFloat = 48
+    private let sliderHeight: CGFloat = 52
     /// 内缩边距
     private let innerPadding: CGFloat = 4
 

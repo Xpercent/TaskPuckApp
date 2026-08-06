@@ -2,12 +2,12 @@ name: TaskPuckApp
 options:
   bundleIdPrefix: com.taskpuck
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "18.0"
 targets:
   TaskPuckApp:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "18.0"
     sources:
       - path: TaskPuckApp
     info:
@@ -20,7 +20,7 @@ targets:
         CFBundlePackageType: "APPL"
         CFBundleShortVersionString: "1.0.0"
         CFBundleVersion: "1"
-        MinimumOSVersion: "17.0"
+        MinimumOSVersion: "18.0"
         CFBundleSupportedPlatforms:
           - iPhoneOS
         UILaunchScreen: {}
