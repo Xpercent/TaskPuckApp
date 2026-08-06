@@ -11,6 +11,7 @@ public struct CreateTaskSheet: View {
     @State private var selectedRecurrence = RecurrenceOption.once
     @State private var startTime = Date()
     @State private var hasStartTime = true
+    @State private var notificationsEnabled = false
     @State private var showsDurationPicker = false
     @State private var onceDate = Date()
     @State private var rangeStartDate = Date()
@@ -58,6 +59,7 @@ public struct CreateTaskSheet: View {
                             durationPicker
                         }
                         startTimePicker
+                        notificationSetting
                         recurrencePicker
                         recurrenceDetail
                     }
@@ -233,6 +235,33 @@ public struct CreateTaskSheet: View {
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 
+    private var notificationSetting: some View {
+        HStack(spacing: 12) {
+            Label(AppConstants.TaskForm.notificationTitle, systemImage: AppConstants.TaskForm.notificationIconSymbol)
+                .font(.system(size: 16, weight: .semibold))
+
+            Spacer()
+
+            Toggle(AppConstants.TaskForm.notificationTitle, isOn: $notificationsEnabled)
+                .labelsHidden()
+                .tint(Color(hex: tintHex))
+                .disabled(!hasStartTime)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 52)
+        .background(AppConstants.Colors.cardBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .onChange(of: notificationsEnabled) { _, enabled in
+            if enabled {
+                TaskNotificationScheduler.requestAuthorization()
+            }
+        }
+        .onChange(of: hasStartTime) { _, value in
+            if !value {
+                notificationsEnabled = false
+            }
+        }
+    }
+
     @ViewBuilder private var recurrenceDetail: some View {
         switch selectedRecurrence {
         case .once:
@@ -366,7 +395,10 @@ public struct CreateTaskSheet: View {
     }
 
     private func actionButton(title: String, color: Color, action: @escaping () -> Void) -> some View {
-        let isDisabled = normalizedTaskTitle.isEmpty && title != "删除"
+        let requiresTaskDetails = title == "创建任务" || title == "更新"
+        let isDisabled = requiresTaskDetails && (
+            normalizedTaskTitle.isEmpty || !hasStartTime || recurrenceSelectionInvalid
+        )
 
         return Button(action: action) {
             Text(title)
@@ -379,7 +411,7 @@ public struct CreateTaskSheet: View {
                     in: Capsule()
                 )
         }
-        .disabled(isDisabled || recurrenceSelectionInvalid)
+        .disabled(isDisabled)
     }
 
     private var normalizedTaskTitle: String {
@@ -481,6 +513,7 @@ public struct CreateTaskSheet: View {
             startTime: hasStartTime ? storedTimeString : nil,
             iconSymbol: iconSymbol,
             tintHex: tintHex,
+            notificationsEnabled: notificationsEnabled,
             initialStatus: isDone ? .done : .todo
         )
         rememberFormPreferences()
@@ -496,7 +529,8 @@ public struct CreateTaskSheet: View {
             recurrence: selectedRecurrenceRule,
             startTime: hasStartTime ? storedTimeString : nil,
             iconSymbol: iconSymbol,
-            tintHex: tintHex
+            tintHex: tintHex,
+            notificationsEnabled: notificationsEnabled
         )
         if let instance = engine.managedTasks(for: .today).first(where: { $0.task.id == editingTask.id })?.instance,
            (instance.status == .done) != isDone {
@@ -544,6 +578,7 @@ public struct CreateTaskSheet: View {
         taskTitle = task.title
         iconSymbol = task.iconSymbol
         tintHex = task.tintHex
+        notificationsEnabled = task.notificationsEnabled
         isDone = editingStatus == .done
 
         if let placement = task.defaultPlacement {
@@ -553,6 +588,7 @@ public struct CreateTaskSheet: View {
         } else {
             selectedDurationMinutes = 0
             hasStartTime = false
+            notificationsEnabled = false
         }
 
         guard let rule = task.recurrenceRules.first else { return }

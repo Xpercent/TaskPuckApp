@@ -1,8 +1,28 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
+
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
 
 @main
 struct TaskPuckApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     let container: ModelContainer
 
     init() {
@@ -43,6 +63,8 @@ struct MainContainerView: View {
                             HomeTimelineView()
                         case 1:
                             TaskManagementView()
+                        case 2:
+                            RecordsView()
                         default:
                             SettingsView()
                         }

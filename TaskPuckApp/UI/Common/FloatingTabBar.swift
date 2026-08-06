@@ -45,7 +45,8 @@ public struct FloatingTabBar: View {
         HStack(spacing: 4) {
             tabButton(symbol: "house.fill", tab: 0)
             tabButton(symbol: "list.bullet.indent", tab: 1)
-            tabButton(symbol: "gearshape.fill", tab: 2)
+            tabButton(symbol: AppConstants.TaskForm.recordsIconSymbol, tab: 2)
+            tabButton(symbol: "gearshape.fill", tab: 3)
         }
         .padding(6) // 稍微增大内边距，匹配变大后的选中框
         .nativeLiquidGlass(
@@ -80,7 +81,7 @@ public struct FloatingTabBar: View {
                         : Color.primary.opacity(0.85)
                     )
             }
-            .frame(width: 82, height: 56) // 【修改】：高度增加1/3 (42 -> 56)，宽度拉长 (54 -> 82)
+            .frame(width: 66, height: 56)
             .contentShape(Capsule()) // 【关键修复】：将整个 82x56 胶囊区域设为点击热区，避免透明处按压不响应
         }
         .buttonStyle(.plain)
@@ -108,6 +109,7 @@ public struct FloatingTabBar: View {
         switch tab {
         case 0: return "今日"
         case 1: return "任务"
+        case 2: return AppConstants.TaskForm.recordsTitle
         default: return "设置"
         }
     }

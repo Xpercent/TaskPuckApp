@@ -73,6 +73,7 @@ public final class TaskEntity {
     public var priorityRaw: String
     public var recurrenceRulesData: Data
     public var defaultPlacementData: Data?
+    public var notificationsEnabled: Bool = false
     public var isArchived: Bool
     public var createdAt: Date
 
@@ -109,6 +110,7 @@ public final class TaskEntity {
         priority: Priority = .medium,
         recurrenceRules: [RecurrenceRule] = [.daily],
         defaultPlacement: DefaultPlacement? = nil,
+        notificationsEnabled: Bool = false,
         isArchived: Bool = false,
         createdAt: Date = Date()
     ) {
@@ -122,6 +124,7 @@ public final class TaskEntity {
         if let defaultPlacement {
             self.defaultPlacementData = try? JSONEncoder().encode(defaultPlacement)
         }
+        self.notificationsEnabled = notificationsEnabled
         self.isArchived = isArchived
         self.createdAt = createdAt
     }
@@ -134,6 +137,7 @@ public final class TaskInstanceEntity {
     public var originalDate: String // YYYY-MM-DD
     public var currentDate: String  // YYYY-MM-DD
     public var statusRaw: String
+    public var completedAt: Date?
     public var createdAt: Date
 
     public var status: InstanceStatus {
@@ -147,6 +151,7 @@ public final class TaskInstanceEntity {
         originalDate: String,
         currentDate: String,
         status: InstanceStatus = .todo,
+        completedAt: Date? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -154,6 +159,7 @@ public final class TaskInstanceEntity {
         self.originalDate = originalDate
         self.currentDate = currentDate
         self.statusRaw = status.rawValue
+        self.completedAt = completedAt
         self.createdAt = createdAt
     }
 }

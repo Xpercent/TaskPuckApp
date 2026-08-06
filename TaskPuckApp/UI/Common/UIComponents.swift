@@ -109,8 +109,9 @@ public struct ContinuousFormSlider: View {
         GeometryReader { geometry in
             let thumbWidth = max(geometry.size.width / CGFloat(max(options.count, 1)), 44)
             let trackWidth = max(geometry.size.width - thumbWidth, 1)
-            let maximum = max(options.last?.minutes ?? 0, 1)
-            let progress = min(max(Double(value) / Double(maximum), 0), 1)
+            let count = max(options.count, 1)
+            let selectedIndex = nearestOptionIndex(to: value)
+            let progress = count > 1 ? Double(selectedIndex) / Double(count - 1) : 0
 
             ZStack(alignment: .leading) {
                 Capsule().fill(Color(uiColor: .tertiarySystemFill))
@@ -135,6 +136,7 @@ public struct ContinuousFormSlider: View {
                             .padding(.horizontal, 4)
                     }
                     .offset(x: trackWidth * progress)
+                    .animation(.smooth(duration: 0.2), value: selectedIndex)
             }
             .frame(height: 40)
             .contentShape(Rectangle())
@@ -142,7 +144,8 @@ public struct ContinuousFormSlider: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
                         let normalized = min(max((gesture.location.x - thumbWidth / 2) / trackWidth, 0), 1)
-                        let newValue = Int((normalized * Double(maximum)).rounded())
+                        let optionIndex = Int((normalized * Double(count - 1)).rounded())
+                        let newValue = options[optionIndex].minutes
                         guard newValue != value else { return }
                         value = newValue
                         if lastFeedbackValue != newValue {
@@ -154,6 +157,12 @@ public struct ContinuousFormSlider: View {
             )
         }
         .frame(height: 40)
+    }
+
+    private func nearestOptionIndex(to value: Int) -> Int {
+        options.enumerated().min {
+            abs($0.element.minutes - value) < abs($1.element.minutes - value)
+        }?.offset ?? 0
     }
 }
 
@@ -172,22 +181,26 @@ public struct DiscreteFormSlider: View {
     public var body: some View {
         GeometryReader { geometry in
             let count = max(titles.count, 1)
-            let itemWidth = geometry.size.width / CGFloat(count)
+            let thumbWidth = max(geometry.size.width / CGFloat(count), 44)
+            let trackWidth = max(geometry.size.width - thumbWidth, 1)
             let index = min(max(selectedIndex, 0), count - 1)
+            let progress = count > 1 ? CGFloat(index) / CGFloat(count - 1) : 0
 
             ZStack(alignment: .leading) {
                 Capsule().fill(Color(uiColor: .tertiarySystemFill))
                 Capsule()
                     .fill(tintColor)
-                    .frame(width: itemWidth, height: 40)
-                    .offset(x: CGFloat(index) * itemWidth)
+                    .frame(width: thumbWidth, height: 40)
+                    .offset(x: trackWidth * progress)
+                    .animation(.smooth(duration: 0.2), value: index)
 
                 HStack(spacing: 0) {
                     ForEach(Array(titles.enumerated()), id: \.offset) { offset, title in
                         Text(title)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(offset == index ? .white : AppConstants.Colors.textSecondaryDark)
-                            .frame(width: itemWidth, height: 40)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                     }
@@ -198,7 +211,8 @@ public struct DiscreteFormSlider: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
-                        let index = min(max(Int(gesture.location.x / max(itemWidth, 1)), 0), count - 1)
+                        let normalized = min(max((gesture.location.x - thumbWidth / 2) / trackWidth, 0), 1)
+                        let index = Int((normalized * CGFloat(count - 1)).rounded())
                         guard index != selectedIndex else { return }
                         selectedIndex = index
                         if lastFeedbackIndex != index {

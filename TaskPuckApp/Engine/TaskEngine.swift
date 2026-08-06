@@ -102,6 +102,12 @@ public final class TaskEngine {
                     let endTime = DateUtils.calculateEndTime(startTime: defaultPlacement.startTime, durationMinutes: defaultPlacement.duration)
                     let placement = TimelinePlacementEntity(instanceId: newInstance.id, startTime: defaultPlacement.startTime, endTime: endTime)
                     modelContext.insert(placement)
+                    TaskNotificationScheduler.schedule(
+                        task: task,
+                        instance: newInstance,
+                        startTime: defaultPlacement.startTime,
+                        durationMinutes: defaultPlacement.duration
+                    )
                 }
             }
         }
@@ -261,7 +267,9 @@ public final class TaskEngine {
             toastMessage = "历史排期不可篡改"
             return
         }
-        instance.status = (instance.status == .done) ? .todo : .done
+        let isMarkingDone = instance.status != .done
+        instance.status = isMarkingDone ? .done : .todo
+        instance.completedAt = isMarkingDone ? Date() : nil
         try? modelContext.save()
         notifyDataChanged()
     }
@@ -273,6 +281,7 @@ public final class TaskEngine {
         startTime: String? = nil,
         iconSymbol: String = "at",
         tintHex: String = "EE8C8C",
+        notificationsEnabled: Bool = false,
         initialStatus: InstanceStatus = .todo
     ) {
         if isReadOnly {
@@ -287,7 +296,8 @@ public final class TaskEngine {
             tintHex: tintHex,
             priority: .urgent,
             recurrenceRules: [recurrence],
-            defaultPlacement: defaultPlacement
+            defaultPlacement: defaultPlacement,
+            notificationsEnabled: notificationsEnabled
         )
         modelContext.insert(newTask)
 
@@ -296,7 +306,8 @@ public final class TaskEngine {
             taskId: newTask.id,
             originalDate: initialDate,
             currentDate: initialDate,
-            status: initialStatus
+            status: initialStatus,
+            completedAt: initialStatus == .done ? Date() : nil
         )
         modelContext.insert(newInstance)
 
@@ -304,6 +315,12 @@ public final class TaskEngine {
             let endTime = DateUtils.calculateEndTime(startTime: startTime, durationMinutes: durationMinutes)
             let placement = TimelinePlacementEntity(instanceId: newInstance.id, startTime: startTime, endTime: endTime)
             modelContext.insert(placement)
+            TaskNotificationScheduler.schedule(
+                task: newTask,
+                instance: newInstance,
+                startTime: startTime,
+                durationMinutes: durationMinutes
+            )
         }
 
         try? modelContext.save()
@@ -317,7 +334,8 @@ public final class TaskEngine {
         recurrence: RecurrenceRule,
         startTime: String?,
         iconSymbol: String,
-        tintHex: String
+        tintHex: String,
+        notificationsEnabled: Bool
     ) {
         if isReadOnly {
             toastMessage = "历史排期不可篡改"
@@ -327,12 +345,22 @@ public final class TaskEngine {
         task.title = title
         task.iconSymbol = iconSymbol
         task.tintHex = tintHex
+        task.notificationsEnabled = notificationsEnabled
         task.recurrenceRules = [recurrence]
         task.defaultPlacement = startTime.map { DefaultPlacement(startTime: $0, duration: durationMinutes) }
 
         let instances = fetchInstances(forTaskID: task.id)
+        TaskNotificationScheduler.cancel(for: instances)
         for instance in instances {
             updatePlacement(for: instance, startTime: startTime, durationMinutes: durationMinutes)
+            if let startTime {
+                TaskNotificationScheduler.schedule(
+                    task: task,
+                    instance: instance,
+                    startTime: startTime,
+                    durationMinutes: durationMinutes
+                )
+            }
         }
         try? modelContext.save()
         notifyDataChanged()
@@ -344,7 +372,9 @@ public final class TaskEngine {
             return
         }
 
-        for instance in fetchInstances(forTaskID: task.id) {
+        let instances = fetchInstances(forTaskID: task.id)
+        TaskNotificationScheduler.cancel(for: instances)
+        for instance in instances {
             deletePlacement(for: instance)
             modelContext.delete(instance)
         }
@@ -354,6 +384,7 @@ public final class TaskEngine {
     }
 
     public func clearAllData() {
+        TaskNotificationScheduler.cancel(for: fetchAll(TaskInstanceEntity.self))
         fetchAll(TimelinePlacementEntity.self).forEach(modelContext.delete)
         fetchAll(TaskInstanceEntity.self).forEach(modelContext.delete)
         fetchAll(TaskEntity.self).forEach(modelContext.delete)

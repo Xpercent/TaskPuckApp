@@ -59,7 +59,7 @@ public enum AppConstants {
     // MARK: - 表单选项定义
     public enum TaskForm {
         public static let durationOptions: [DurationOption] = [
-            DurationOption(title: "无", minutes: 0),
+            DurationOption(title: "0", minutes: 0),
             DurationOption(title: "15m", minutes: 15),
             DurationOption(title: "30m", minutes: 30),
             DurationOption(title: "45m", minutes: 45),
@@ -76,6 +76,11 @@ public enum AppConstants {
             WeekdayOption(weekday: .fri, title: "五"),
             WeekdayOption(weekday: .sat, title: "六")
         ]
+
+        public static let notificationTitle = "通知"
+        public static let notificationIconSymbol = "bell.badge"
+        public static let recordsTitle = "记录"
+        public static let recordsIconSymbol = "book.closed"
     }
 
     // MARK: - 时间轴参数
