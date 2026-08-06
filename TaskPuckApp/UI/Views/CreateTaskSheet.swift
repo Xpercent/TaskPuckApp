@@ -168,8 +168,6 @@ public struct CreateTaskSheet: View {
             currentValue: selectedDurationMinutes,
             valueTitle: durationThumbTitle
         )
-        .padding(4)
-        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 
     private var durationThumbTitle: String {
@@ -245,9 +243,6 @@ public struct CreateTaskSheet: View {
             titles: RecurrenceOption.allCases.map(\.title),
             tintColor: Color(hex: tintHex)
         )
-        .padding(4)
-        // 修正：采用系统动态填充色
-        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 
     private var notificationSetting: some View {

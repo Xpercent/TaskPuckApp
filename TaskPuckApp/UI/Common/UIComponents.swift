@@ -97,7 +97,10 @@ public struct SnappingFormSlider: View {
     private let values: [Int]?
     private let currentValue: Int?
     private let valueTitle: String?
+    /// 整体滑轨外框高度
     private let sliderHeight: CGFloat = 48
+    /// 内缩边距
+    private let innerPadding: CGFloat = 4
 
     @State private var lastFeedbackIndex: Int?
 
@@ -119,50 +122,57 @@ public struct SnappingFormSlider: View {
 
     public var body: some View {
         GeometryReader { geometry in
+            // 内层实际可滚动的有效宽度
+            let contentWidth = max(geometry.size.width - innerPadding * 2, 1)
             let count = max(titles.count, 1)
-            let thumbWidth = max(geometry.size.width / CGFloat(count), 44)
-            let trackWidth = max(geometry.size.width - thumbWidth, 1)
+            let thumbWidth = max(contentWidth / CGFloat(count), 44)
+            let trackWidth = max(contentWidth - thumbWidth, 1)
 
             let progress = currentProgress(count: count)
+            let innerHeight = sliderHeight - innerPadding * 2 // 内层元素高度 (40pt)
 
             ZStack(alignment: .leading) {
-                // 1. 轨道背景
+                // 1. 统一封装的外层滑轨背景 (48pt 高度)
                 Capsule().fill(Color(uiColor: .tertiarySystemFill))
 
-                // 2. 刻度静态文字底纹
-                HStack(spacing: 0) {
-                    ForEach(Array(titles.enumerated()), id: \.offset) { _, title in
-                        Text(title)
-                            .font(.system(size: 14, weight: .semibold)) // 字体微调更清晰
-                            .foregroundStyle(AppConstants.Colors.textSecondaryDark)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: sliderHeight) // 调整为 48
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+                // 2. 内层元素（缩进 4pt，高 40pt）
+                ZStack(alignment: .leading) {
+                    // 刻度静态文字底纹
+                    HStack(spacing: 0) {
+                        ForEach(Array(titles.enumerated()), id: \.offset) { _, title in
+                            Text(title)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(AppConstants.Colors.textSecondaryDark)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: innerHeight)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
                     }
-                }
 
-                // 3. 滑动块 Thumb
-                Capsule()
-                    .fill(tintColor)
-                    .frame(width: thumbWidth, height: sliderHeight) // 调整为 48
-                    .overlay(
-                        Text(thumbText)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .padding(.horizontal, 2)
-                    )
-                    .offset(x: trackWidth * progress)
-                    .animation(.smooth(duration: 0.2), value: progress)
+                    // 滑块 Thumb
+                    Capsule()
+                        .fill(tintColor)
+                        .frame(width: thumbWidth, height: innerHeight)
+                        .overlay(
+                            Text(thumbText)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .padding(.horizontal, 2)
+                        )
+                        .offset(x: trackWidth * progress)
+                        .animation(.smooth(duration: 0.2), value: progress)
+                }
+                .padding(innerPadding) // 内缩 4pt 边距
             }
-            .frame(height: sliderHeight) // 调整为 48
+            .frame(height: sliderHeight)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
-                        let normalized = min(max((gesture.location.x - thumbWidth / 2) / trackWidth, 0), 1)
+                        let normalized = min(max((gesture.location.x - innerPadding - thumbWidth / 2) / trackWidth, 0), 1)
                         let index = Int((normalized * CGFloat(count - 1)).rounded())
                         guard index != selectedIndex else { return }
                         selectedIndex = index
@@ -174,7 +184,7 @@ public struct SnappingFormSlider: View {
                     .onEnded { _ in lastFeedbackIndex = nil }
             )
         }
-        .frame(height: sliderHeight) // 调整为 48
+        .frame(height: sliderHeight)
     }
 
     /// 计算滑块视觉位置 (0.0 ~ 1.0)
