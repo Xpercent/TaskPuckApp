@@ -25,6 +25,7 @@ public struct CreateTaskSheet: View {
     @AppStorage(AppConstants.StorageKeys.lastDurationMinutes) private var lastDurationMinutes = 0
     @AppStorage(AppConstants.StorageKeys.lastHasStartTime) private var lastHasStartTime = true
     @AppStorage(AppConstants.StorageKeys.lastRecurrenceIndex) private var lastRecurrenceIndex = 0
+    @AppStorage(AppConstants.StorageKeys.lastNotificationsEnabled) private var lastNotificationsEnabled = false
 
     private let editingTask: TaskEntity?
     private let editingStatus: InstanceStatus
@@ -98,6 +99,10 @@ public struct CreateTaskSheet: View {
             guard editingTask == nil else { return }
             lastRecurrenceIndex = RecurrenceOption.allCases.firstIndex(of: value) ?? 0
         }
+        .onChange(of: notificationsEnabled) { _, value in
+            guard editingTask == nil else { return }
+            lastNotificationsEnabled = value
+        }
         .sheet(isPresented: $showsAppearancePicker) {
             AppearancePickerSheet(iconSymbol: $iconSymbol, tintHex: $tintHex)
                 .presentationDetents([.medium, .large])
@@ -155,13 +160,10 @@ public struct CreateTaskSheet: View {
     }
 
     private var durationPicker: some View {
-        ContinuousFormSlider(
-            value: $selectedDurationMinutes,
-            options: durationOptions,
-            tintColor: Color(hex: tintHex),
-            valueTitle: { minutes in
-                minutes < 60 ? "\(minutes)m" : (minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m")
-            }
+        SnappingFormSlider(
+            selectedIndex: durationIndex,
+            titles: durationOptions.map(\.title),
+            tintColor: Color(hex: tintHex)
         )
         .padding(4)
         // 修正：采用系统动态填充色
@@ -225,7 +227,7 @@ public struct CreateTaskSheet: View {
     }
 
     private var recurrencePicker: some View {
-        DiscreteFormSlider(
+        SnappingFormSlider(
             selectedIndex: recurrenceIndex,
             titles: RecurrenceOption.allCases.map(\.title),
             tintColor: Color(hex: tintHex)
@@ -500,6 +502,7 @@ public struct CreateTaskSheet: View {
         tintHex = themeHex
         selectedDurationMinutes = lastDurationMinutes
         hasStartTime = lastHasStartTime
+        notificationsEnabled = lastNotificationsEnabled
         if RecurrenceOption.allCases.indices.contains(lastRecurrenceIndex) {
             selectedRecurrence = RecurrenceOption.allCases[lastRecurrenceIndex]
         }
@@ -572,6 +575,18 @@ public struct CreateTaskSheet: View {
         lastDurationMinutes = selectedDurationMinutes
         lastHasStartTime = hasStartTime
         lastRecurrenceIndex = RecurrenceOption.allCases.firstIndex(of: selectedRecurrence) ?? 0
+        lastNotificationsEnabled = notificationsEnabled
+    }
+
+    private var durationIndex: Binding<Int> {
+        Binding(
+            get: {
+                durationOptions.enumerated().min {
+                    abs($0.element.minutes - selectedDurationMinutes) < abs($1.element.minutes - selectedDurationMinutes)
+                }?.offset ?? 0
+            },
+            set: { selectedDurationMinutes = durationOptions[$0].minutes }
+        )
     }
 
     private func load(_ task: TaskEntity) {

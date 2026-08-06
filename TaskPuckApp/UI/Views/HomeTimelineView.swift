@@ -209,8 +209,11 @@ struct InteractiveTimelineRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 if let placement = item.placement {
-                    let duration = DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
-                    Text("\(placement.startTime) - \(placement.endTime) (\(duration)分钟)")
+                    let duration = item.task.defaultPlacement?.duration
+                        ?? DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
+                    Text(duration > 0
+                        ? "\(placement.startTime) - \(placement.endTime) (\(duration)分钟)"
+                        : placement.startTime)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }

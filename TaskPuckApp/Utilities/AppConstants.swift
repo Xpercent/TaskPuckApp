@@ -11,6 +11,7 @@ public enum AppConstants {
         public static let lastDurationMinutes = "task_form_last_duration_minutes"
         public static let lastHasStartTime = "task_form_last_has_start_time"
         public static let lastRecurrenceIndex = "task_form_last_recurrence_index"
+        public static let lastNotificationsEnabled = "task_form_last_notifications_enabled"
     }
 
     // MARK: - 任务外观与预设配置

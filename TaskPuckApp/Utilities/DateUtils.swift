@@ -73,9 +73,10 @@ public enum DateUtils {
     public static func calculateDuration(startTime: String, endTime: String) -> Int {
         let startParts = startTime.split(separator: ":").compactMap { Int($0) }
         let endParts = endTime.split(separator: ":").compactMap { Int($0) }
-        guard startParts.count == 2, endParts.count == 2 else { return 15 }
+        guard startParts.count == 2, endParts.count == 2 else { return 0 }
         let startMins = startParts[0] * 60 + startParts[1]
         let endMins = endParts[0] * 60 + endParts[1]
-        return max(15, endMins - startMins)
+        let difference = endMins - startMins
+        return difference >= 0 ? difference : difference + 24 * 60
     }
 }
