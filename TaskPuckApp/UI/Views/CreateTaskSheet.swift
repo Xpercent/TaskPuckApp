@@ -161,12 +161,12 @@ public struct CreateTaskSheet: View {
 
     private var durationPicker: some View {
         SnappingFormSlider(
-            selectedIndex: durationIndex,
+            value: $selectedDurationMinutes,
+            values: durationOptions.map(\.minutes),
             titles: durationOptions.map(\.title),
             tintColor: Color(hex: tintHex)
         )
         .padding(4)
-        // 修正：采用系统动态填充色
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 

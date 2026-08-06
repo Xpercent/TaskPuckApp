@@ -212,7 +212,7 @@ struct InteractiveTimelineRow: View {
                     let duration = item.task.defaultPlacement?.duration
                         ?? DateUtils.calculateDuration(startTime: placement.startTime, endTime: placement.endTime)
                     Text(duration > 0
-                        ? "\(placement.startTime) - \(placement.endTime) (\(duration)分钟)"
+                        ? "\(placement.startTime) - \(placement.endTime) (\(DateUtils.durationDisplayString(minutes: duration)))"
                         : placement.startTime)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.secondary)

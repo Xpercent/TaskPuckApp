@@ -79,4 +79,12 @@ public enum DateUtils {
         let difference = endMins - startMins
         return difference >= 0 ? difference : difference + 24 * 60
     }
+
+    public static func durationDisplayString(minutes: Int) -> String {
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        if hours == 0 { return "\(remainder)分钟" }
+        if remainder == 0 { return "\(hours)小时" }
+        return "\(hours)小时\(remainder)分钟"
+    }
 }
