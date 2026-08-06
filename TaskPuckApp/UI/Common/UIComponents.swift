@@ -97,6 +97,7 @@ public struct SnappingFormSlider: View {
     private let values: [Int]?
     private let currentValue: Int?
     private let valueTitle: String?
+    private let sliderHeight: CGFloat = 48
 
     @State private var lastFeedbackIndex: Int?
 
@@ -125,29 +126,29 @@ public struct SnappingFormSlider: View {
             let progress = currentProgress(count: count)
 
             ZStack(alignment: .leading) {
-                // 轨道背景
+                // 1. 轨道背景
                 Capsule().fill(Color(uiColor: .tertiarySystemFill))
 
-                // 刻度静态文字底纹
+                // 2. 刻度静态文字底纹
                 HStack(spacing: 0) {
                     ForEach(Array(titles.enumerated()), id: \.offset) { _, title in
                         Text(title)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold)) // 字体微调更清晰
                             .foregroundStyle(AppConstants.Colors.textSecondaryDark)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 40)
+                            .frame(height: sliderHeight) // 调整为 48
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                     }
                 }
 
-                // 滑动块：展示当前实际数值（如 10m），并根据计算位置偏转
+                // 3. 滑动块 Thumb
                 Capsule()
                     .fill(tintColor)
-                    .frame(width: thumbWidth, height: 40)
+                    .frame(width: thumbWidth, height: sliderHeight) // 调整为 48
                     .overlay(
                         Text(thumbText)
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
@@ -156,10 +157,9 @@ public struct SnappingFormSlider: View {
                     .offset(x: trackWidth * progress)
                     .animation(.smooth(duration: 0.2), value: progress)
             }
-            .frame(height: 40)
+            .frame(height: sliderHeight) // 调整为 48
             .contentShape(Rectangle())
             .gesture(
-                // 保持原有的按档位离散切换逻辑不变
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
                         let normalized = min(max((gesture.location.x - thumbWidth / 2) / trackWidth, 0), 1)
@@ -174,7 +174,7 @@ public struct SnappingFormSlider: View {
                     .onEnded { _ in lastFeedbackIndex = nil }
             )
         }
-        .frame(height: 40)
+        .frame(height: sliderHeight) // 调整为 48
     }
 
     /// 计算滑块视觉位置 (0.0 ~ 1.0)
