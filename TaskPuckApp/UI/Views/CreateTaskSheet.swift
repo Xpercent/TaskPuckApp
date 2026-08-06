@@ -161,13 +161,26 @@ public struct CreateTaskSheet: View {
 
     private var durationPicker: some View {
         SnappingFormSlider(
-            value: $selectedDurationMinutes,
-            values: durationOptions.map(\.minutes),
+            selectedIndex: durationIndex,
             titles: durationOptions.map(\.title),
-            tintColor: Color(hex: tintHex)
+            tintColor: Color(hex: tintHex),
+            values: durationOptions.map(\.minutes),
+            currentValue: selectedDurationMinutes,
+            valueTitle: durationThumbTitle
         )
         .padding(4)
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
+    }
+
+    private var durationThumbTitle: String {
+        if let option = durationOptions.first(where: { $0.minutes == selectedDurationMinutes }) {
+            return option.title
+        }
+        let h = selectedDurationMinutes / 60
+        let m = selectedDurationMinutes % 60
+        if h == 0 { return "\(m)m" }
+        if m == 0 { return "\(h)h" }
+        return "\(h)h\(m)m"
     }
 
     private var durationDateBinding: Binding<Date> {
