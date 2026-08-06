@@ -158,7 +158,7 @@ public struct CreateTaskSheet: View {
             options: durationOptions,
             tintColor: Color(hex: tintHex),
             valueTitle: { minutes in
-                minutes == 0 ? "0m" : (minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m")
+                minutes < 60 ? "\(minutes)m" : (minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m")
             }
         )
         .padding(4)
@@ -379,11 +379,22 @@ public struct CreateTaskSheet: View {
                     in: Capsule()
                 )
         }
-        .disabled(isDisabled)
+        .disabled(isDisabled || recurrenceSelectionInvalid)
     }
 
     private var normalizedTaskTitle: String {
         taskTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var recurrenceSelectionInvalid: Bool {
+        switch selectedRecurrence {
+        case .weekly:
+            selectedWeekdays.isEmpty
+        case .monthly:
+            selectedMonthDays.isEmpty
+        default:
+            false
+        }
     }
 
     private var placementSummary: String {

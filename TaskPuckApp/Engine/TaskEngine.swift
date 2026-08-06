@@ -82,6 +82,13 @@ public final class TaskEngine {
             )
             let existing = (try? modelContext.fetch(instanceDescriptor)) ?? []
 
+            if existing.count > 1 {
+                for duplicate in existing.dropFirst() {
+                    deletePlacement(for: duplicate)
+                    modelContext.delete(duplicate)
+                }
+            }
+
             if existing.isEmpty && matchesRecurrence(rules: task.recurrenceRules, targetDate: targetDate, weekdayIndex: weekdayIndex) {
                 let newInstance = TaskInstanceEntity(
                     taskId: task.id,
@@ -144,13 +151,21 @@ public final class TaskEngine {
 
     public func autoRollOverdueTasks() {
         let today = DateUtils.todayString()
+        let todayInstances = fetchInstances(for: today)
+        var todayTaskIDs = Set(todayInstances.map(\.taskId))
         let instanceDescriptor = FetchDescriptor<TaskInstanceEntity>(
             predicate: #Predicate { $0.currentDate < today && $0.statusRaw == "TODO" }
         )
         guard let overdueInstances = try? modelContext.fetch(instanceDescriptor) else { return }
 
         for instance in overdueInstances {
-            instance.currentDate = today
+            if todayTaskIDs.contains(instance.taskId) {
+                deletePlacement(for: instance)
+                modelContext.delete(instance)
+            } else {
+                instance.currentDate = today
+                todayTaskIDs.insert(instance.taskId)
+            }
         }
         try? modelContext.save()
         notifyDataChanged()

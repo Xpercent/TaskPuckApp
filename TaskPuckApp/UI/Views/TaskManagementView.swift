@@ -32,6 +32,7 @@ public struct TaskManagementView: View {
                             .buttonStyle(.plain)
                         }
                     }
+                    .id(engine.dataVersion)
                     .padding(.horizontal, 20)
                 }
                 .padding(.bottom, 110)

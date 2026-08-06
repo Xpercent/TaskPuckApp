@@ -107,8 +107,8 @@ public struct ContinuousFormSlider: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            let thumbDiameter: CGFloat = 40
-            let trackWidth = max(geometry.size.width - thumbDiameter, 1)
+            let thumbWidth = max(geometry.size.width / CGFloat(max(options.count, 1)), 44)
+            let trackWidth = max(geometry.size.width - thumbWidth, 1)
             let maximum = max(options.last?.minutes ?? 0, 1)
             let progress = min(max(Double(value) / Double(maximum), 0), 1)
 
@@ -125,7 +125,7 @@ public struct ContinuousFormSlider: View {
                 }
                 Capsule()
                     .fill(tintColor)
-                    .frame(width: thumbDiameter, height: 40)
+                    .frame(width: thumbWidth, height: 40)
                     .overlay {
                         Text(valueTitle(value))
                             .font(.system(size: 12, weight: .bold))
@@ -141,7 +141,7 @@ public struct ContinuousFormSlider: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { gesture in
-                        let normalized = min(max((gesture.location.x - thumbDiameter / 2) / trackWidth, 0), 1)
+                        let normalized = min(max((gesture.location.x - thumbWidth / 2) / trackWidth, 0), 1)
                         let newValue = Int((normalized * Double(maximum)).rounded())
                         guard newValue != value else { return }
                         value = newValue
