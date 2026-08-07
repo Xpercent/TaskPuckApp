@@ -152,28 +152,6 @@ public final class TaskEngine {
         }
     }
 
-    public func autoRollOverdueTasks() {
-        let today = DateUtils.todayString()
-        let todayInstances = fetchInstances(for: today)
-        var todayTaskIDs = Set(todayInstances.map(\.taskId))
-        let instanceDescriptor = FetchDescriptor<TaskInstanceEntity>(
-            predicate: #Predicate { $0.currentDate < today && $0.statusRaw == "TODO" }
-        )
-        guard let overdueInstances = try? modelContext.fetch(instanceDescriptor) else { return }
-
-        for instance in overdueInstances {
-            if todayTaskIDs.contains(instance.taskId) {
-                deletePlacement(for: instance)
-                modelContext.delete(instance)
-            } else {
-                instance.currentDate = today
-                todayTaskIDs.insert(instance.taskId)
-            }
-        }
-        try? modelContext.save()
-        notifyDataChanged()
-    }
-
     public func getTaskStack(for targetDate: String) -> [DisplayTimelineItem] {
         let instanceDescriptor = FetchDescriptor<TaskInstanceEntity>(
             predicate: #Predicate { $0.currentDate == targetDate }
