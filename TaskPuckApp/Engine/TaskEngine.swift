@@ -179,9 +179,6 @@ public final class TaskEngine {
             let taskId = instance.taskId
             let taskDescriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { $0.id == taskId })
             guard let task = (try? modelContext.fetch(taskDescriptor))?.first else { continue }
-            if targetDate < DateUtils.todayString(), task.recurrenceRules.contains(where: isRepeatingRule) {
-                continue
-            }
 
             let instanceId = instance.id
             let placementDescriptor = FetchDescriptor<TimelinePlacementEntity>(predicate: #Predicate { $0.instanceId == instanceId })
