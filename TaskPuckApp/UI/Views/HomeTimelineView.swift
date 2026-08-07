@@ -63,7 +63,7 @@ public struct HomeTimelineView: View {
                             let cardDate = calendar.date(byAdding: .day, value: offset, to: baseDate) ?? baseDate
                             let cardDateString = DateUtils.string(from: cardDate)
 
-                            TimelineCardView(date: cardDate, dateString: cardDateString, engine: engine)
+                            TimelineCardView(date: cardDate, dateString: cardDateString)
                                 .containerRelativeFrame(.horizontal)
                                 .id(cardDateString)
                         }
@@ -149,9 +149,10 @@ public struct HomeTimelineView: View {
 struct TimelineCardView: View {
     let date: Date
     let dateString: String
-    let engine: TaskEngine
+    @Environment(TaskEngine.self) private var engine
 
     var body: some View {
+        let _ = engine.dataVersion
         ZStack {
             AppConstants.Colors.cardBackground
                 .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
