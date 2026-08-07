@@ -71,8 +71,14 @@ public final class TaskEngine {
         let targetDateObj = DateUtils.date(from: targetDate) ?? Date()
         let calendar = Calendar.current
         let weekdayIndex = calendar.component(.weekday, from: targetDateObj)
+        let isPastDate = targetDate < DateUtils.todayString()
 
         for task in tasks {
+            // Repeating schedules begin on their creation date; do not backfill history.
+            if isPastDate && task.recurrenceRules.contains(where: isRepeatingRule) {
+                continue
+            }
+
             let taskId = task.id
             let instanceDescriptor = FetchDescriptor<TaskInstanceEntity>(
                 predicate: #Predicate { $0.taskId == taskId && $0.currentDate == targetDate }
@@ -140,6 +146,15 @@ public final class TaskEngine {
         return rules.isEmpty
     }
 
+    private func isRepeatingRule(_ rule: RecurrenceRule) -> Bool {
+        switch rule {
+        case .daily, .weekly, .monthly, .monthlyMultiple:
+            return true
+        case .once, .dateRange:
+            return false
+        }
+    }
+
     private func weekday(for calendarWeekday: Int) -> Weekday {
         switch calendarWeekday {
         case 1: .sun
@@ -164,6 +179,9 @@ public final class TaskEngine {
             let taskId = instance.taskId
             let taskDescriptor = FetchDescriptor<TaskEntity>(predicate: #Predicate { $0.id == taskId })
             guard let task = (try? modelContext.fetch(taskDescriptor))?.first else { continue }
+            if targetDate < DateUtils.todayString(), task.recurrenceRules.contains(where: isRepeatingRule) {
+                continue
+            }
 
             let instanceId = instance.id
             let placementDescriptor = FetchDescriptor<TimelinePlacementEntity>(predicate: #Predicate { $0.instanceId == instanceId })
