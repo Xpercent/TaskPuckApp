@@ -102,6 +102,7 @@ struct MainContainerView: View {
                 ProgressView()
                     .onAppear {
                         let eng = TaskEngine(modelContext: modelContext)
+                        eng.autoRollOverdueTasks()
                         eng.selectDate(DateUtils.todayString())
                         self.engine = eng
                     }

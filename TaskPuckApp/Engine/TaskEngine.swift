@@ -57,9 +57,6 @@ public final class TaskEngine {
         self.selectedDateString = dateString
         self.updateTemporalSafetyState()
         self.ensureInstances(for: dateString)
-        if dateString == DateUtils.todayString() {
-            self.autoRollOverdueTasks()
-        }
     }
 
     private func updateTemporalSafetyState() {
