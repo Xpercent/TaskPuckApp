@@ -124,6 +124,19 @@ public struct SettingsView: View {
                 Divider().padding(.leading, 56)
 
                 Button {
+                    engine.simulateNextDay()
+                } label: {
+                    settingsRow(
+                        title: AppConstants.Settings.simulateNextDayTitle,
+                        icon: AppConstants.Settings.simulateNextDayIconSymbol,
+                        tint: Color(hex: themeHex)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Divider().padding(.leading, 56)
+
+                Button {
                     showsClearConfirmation = true
                 } label: {
                     settingsRow(title: "清空数据", icon: "trash", tint: .red)

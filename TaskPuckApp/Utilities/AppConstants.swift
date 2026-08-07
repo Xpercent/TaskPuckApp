@@ -39,6 +39,12 @@ public enum AppConstants {
         public static let defaultThemeIcon = "paintpalette.fill"
     }
 
+    public enum Settings {
+        public static let simulateNextDayTitle = "模拟下一天"
+        public static let simulateNextDayIconSymbol = "forward.end"
+        public static let simulatedNextDayMessage = "已模拟至下一天"
+    }
+
     // MARK: - UI 主题颜色 (使用 static var 计算属性，安全兼容 LiveContainer 动态加载)
     public enum Colors {
         /// 全局统一背景色

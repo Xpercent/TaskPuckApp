@@ -83,10 +83,11 @@ public struct HomeTimelineView: View {
                 }
             }
         }
+        .onChange(of: engine.selectedDateString) { _, dateString in
+            synchronizeTimelineDate(with: dateString)
+        }
         .onAppear {
-            if scrollPositionDateString == nil {
-                scrollPositionDateString = DateUtils.string(from: selectedDate)
-            }
+            synchronizeTimelineDate(with: engine.selectedDateString)
         }
     }
 
@@ -129,6 +130,21 @@ public struct HomeTimelineView: View {
         let currentWeek = DateUtils.startOfWeek(containing: Date())
         visibleWeekOffset = calendar.dateComponents([.weekOfYear], from: currentWeek, to: DateUtils.startOfWeek(containing: date)).weekOfYear ?? 0
         engine.selectDate(dateString)
+    }
+
+    private func synchronizeTimelineDate(with dateString: String) {
+        guard let date = dateFromFormattedString(dateString),
+              !calendar.isDate(date, inSameDayAs: selectedDate) else {
+            return
+        }
+        selectedDate = date
+        scrollPositionDateString = dateString
+        let currentWeek = DateUtils.startOfWeek(containing: Date())
+        visibleWeekOffset = calendar.dateComponents(
+            [.weekOfYear],
+            from: currentWeek,
+            to: DateUtils.startOfWeek(containing: date)
+        ).weekOfYear ?? 0
     }
 
     private func dateFromFormattedString(_ string: String) -> Date? {

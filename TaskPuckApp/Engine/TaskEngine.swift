@@ -43,25 +43,26 @@ public struct ManagedTaskItem: Identifiable {
 public final class TaskEngine {
     private var modelContext: ModelContext
     public var selectedDateString: String
-    public var isReadOnly: Bool = false
     public var toastMessage: String?
     public private(set) var dataVersion = 0
 
     public init(modelContext: ModelContext, initialDate: String = DateUtils.todayString()) {
         self.modelContext = modelContext
         self.selectedDateString = initialDate
-        self.updateTemporalSafetyState()
     }
 
     public func selectDate(_ dateString: String) {
         self.selectedDateString = dateString
-        self.updateTemporalSafetyState()
         self.ensureInstances(for: dateString)
     }
 
-    private func updateTemporalSafetyState() {
-        let today = DateUtils.todayString()
-        self.isReadOnly = selectedDateString < today
+    public func simulateNextDay() {
+        guard let selectedDate = DateUtils.date(from: selectedDateString),
+              let nextDate = DateUtils.calendar.date(byAdding: .day, value: 1, to: selectedDate) else {
+            return
+        }
+        selectDate(DateUtils.string(from: nextDate))
+        toastMessage = AppConstants.Settings.simulatedNextDayMessage
     }
 
     public func ensureInstances(for targetDate: String) {
@@ -253,10 +254,6 @@ public final class TaskEngine {
     }
 
     public func toggleTaskStatus(instance: TaskInstanceEntity) {
-        if isReadOnly {
-            toastMessage = "历史排期不可篡改"
-            return
-        }
         let isMarkingDone = instance.status != .done
         instance.status = isMarkingDone ? .done : .todo
         instance.completedAt = isMarkingDone ? Date() : nil
@@ -274,11 +271,6 @@ public final class TaskEngine {
         notificationsEnabled: Bool = false,
         initialStatus: InstanceStatus = .todo
     ) {
-        if isReadOnly {
-            toastMessage = "历史排期不可篡改"
-            return
-        }
-
         let defaultPlacement = startTime.map { DefaultPlacement(startTime: $0, duration: durationMinutes) }
         let newTask = TaskEntity(
             title: title,
@@ -327,11 +319,6 @@ public final class TaskEngine {
         tintHex: String,
         notificationsEnabled: Bool
     ) {
-        if isReadOnly {
-            toastMessage = "历史排期不可篡改"
-            return
-        }
-
         task.title = title
         task.iconSymbol = iconSymbol
         task.tintHex = tintHex
@@ -357,11 +344,6 @@ public final class TaskEngine {
     }
 
     public func deleteTask(_ task: TaskEntity) {
-        if isReadOnly {
-            toastMessage = "历史排期不可篡改"
-            return
-        }
-
         let instances = fetchInstances(forTaskID: task.id)
         TaskNotificationScheduler.cancel(for: instances)
         for instance in instances {
@@ -387,7 +369,6 @@ public final class TaskEngine {
         let today = DateUtils.todayString()
         let tomorrow = DateUtils.string(from: DateUtils.calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
         selectedDateString = today
-        isReadOnly = false
 
         createNewTask(title: "晨间计划", durationMinutes: 30, recurrence: .daily, startTime: "08:00", iconSymbol: "sun.max.fill", tintHex: "FF9D73")
         createNewTask(title: "项目回顾", durationMinutes: 45, recurrence: .weekly(weekdays: [.mon, .wed, .fri]), startTime: "10:00", iconSymbol: "briefcase.fill", tintHex: "5E86A8")
