@@ -8,7 +8,7 @@ public struct HomeTimelineView: View {
     @State private var scrollPositionDateString: String? = DateUtils.string(from: Calendar.current.startOfDay(for: Date()))
 
     private let weekOffsets = AppConstants.Timeline.weekOffsetRange
-    private let dayOffsets = -365...365
+    private let dayOffsets = -180...180
     private let calendar = DateUtils.calendar
     private let baseDate = DateUtils.calendar.startOfDay(for: Date())
 
@@ -18,14 +18,14 @@ public struct HomeTimelineView: View {
             AppConstants.Colors.backgroundGrey.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // 1. 日历与头部区域（位置向上微调，缩减垂直间距）
-                VStack(alignment: .leading, spacing: 10) {
+                // 1. 日历与头部区域（整体向上移动，紧凑排布）
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 4) {
                         Text(DateUtils.yearString(from: selectedDate))
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
                             .foregroundStyle(Color(hex: themeHex))
                         Text(DateUtils.monthDayString(from: selectedDate))
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
                             .foregroundStyle(AppConstants.Colors.primaryTextDark)
                     }
                     .padding(.horizontal, 24)
@@ -36,7 +36,7 @@ public struct HomeTimelineView: View {
                                 .tag(offset)
                         }
                     }
-                    .frame(height: 66)
+                    .frame(height: 50)
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .onChange(of: visibleWeekOffset) { _, newOffset in
                         let currentWeekOfSelected = DateUtils.startOfWeek(containing: Date(), addingWeeks: newOffset)
@@ -53,17 +53,17 @@ public struct HomeTimelineView: View {
                         }
                     }
                 }
-                .padding(.top, 4)
-                .padding(.bottom, 8)
+                .padding(.top, 0)
+                .padding(.bottom, 2)
 
-                // 2. 时间轴卡片区域（100% 屏宽、带间距平滑滑动）
+                // 2. 时间轴卡片区域（100%屏宽、卡片间距、平滑无卡顿）
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 16) {
                         ForEach(dayOffsets, id: \.self) { offset in
                             let cardDate = calendar.date(byAdding: .day, value: offset, to: baseDate) ?? baseDate
                             let cardDateString = DateUtils.string(from: cardDate)
 
-                            timelineCard(date: cardDate, dateString: cardDateString)
+                            TimelineCardView(date: cardDate, dateString: cardDateString)
                                 .containerRelativeFrame(.horizontal)
                                 .id(cardDateString)
                         }
@@ -90,32 +90,6 @@ public struct HomeTimelineView: View {
         }
     }
 
-    private func timelineCard(date: Date, dateString: String) -> some View {
-        ZStack {
-            AppConstants.Colors.cardBackground
-                .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
-                .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: -5)
-
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 28) {
-                    let items = engine.getTaskStack(for: dateString)
-                    ForEach(items) { item in
-                        InteractiveTimelineRow(item: item, selectedDate: date) {
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                engine.toggleTaskStatus(instance: item.instance)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 28)
-                .padding(.bottom, 120)
-            }
-        }
-        .contentShape(Rectangle())
-        .ignoresSafeArea(edges: .bottom)
-    }
-
     private func weekPage(offset: Int) -> some View {
         let start = DateUtils.startOfWeek(containing: Date(), addingWeeks: offset)
         return HStack(spacing: 12) {
@@ -125,14 +99,14 @@ public struct HomeTimelineView: View {
                 Button {
                     selectTimelineDate(date)
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 2) { // 缩小星期与号数的垂直间距 (8 -> 2)
                         Text(DateUtils.weekdayString(from: date))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.secondary)
                         Text(DateUtils.dayString(from: date))
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(isSelected ? Color(uiColor: .systemBackground) : AppConstants.Colors.primaryTextDark)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 30, height: 30)
                             .background(isSelected ? Color(hex: themeHex) : Color.clear, in: Circle())
                     }
                     .frame(maxWidth: .infinity)
@@ -171,6 +145,40 @@ public struct HomeTimelineView: View {
     }
 }
 
+// MARK: - 卡片独立视图（解决滑动卡顿）
+struct TimelineCardView: View {
+    let date: Date
+    let dateString: String
+    @Environment(TaskEngine.self) private var engine
+
+    var body: some View {
+        ZStack {
+            AppConstants.Colors.cardBackground
+                .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+                .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: -4)
+
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 24) {
+                    let items = engine.getTaskStack(for: dateString)
+                    ForEach(items) { item in
+                        InteractiveTimelineRow(item: item, selectedDate: date) {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                engine.toggleTaskStatus(instance: item.instance)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 120)
+            }
+        }
+        .contentShape(Rectangle())
+        .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+// MARK: - 交互行视图（性能优化的 Task 行）
 struct InteractiveTimelineRow: View {
     let item: DisplayTimelineItem
     let selectedDate: Date
@@ -199,14 +207,31 @@ struct InteractiveTimelineRow: View {
         return min(max(elapsed / totalDuration, 0.0), 1.0)
     }
 
-    private func createSmoothGradient(reachedColor: Color, unreachedColor: Color) -> LinearGradient {
+    @ViewBuilder
+    private var iconBackgroundShape: some View {
         let p = progress
         if p <= 0 {
-            return LinearGradient(colors: [unreachedColor], startPoint: .top, endPoint: .bottom)
+            Circle().fill(AppConstants.Colors.unreachedBg)
         } else if p >= 1 {
-            return LinearGradient(colors: [reachedColor], startPoint: .top, endPoint: .bottom)
+            Circle().fill(iconBgColor)
+        } else {
+            Circle().fill(createSmoothGradient(reachedColor: iconBgColor, unreachedColor: AppConstants.Colors.unreachedBg, p: p))
         }
+    }
 
+    @ViewBuilder
+    private var iconForegroundStyle: AnyShapeStyle {
+        let p = progress
+        if p <= 0 {
+            AnyShapeStyle(iconBgColor)
+        } else if p >= 1 {
+            AnyShapeStyle(Color.white)
+        } else {
+            AnyShapeStyle(createSmoothGradient(reachedColor: .white, unreachedColor: iconBgColor, p: p))
+        }
+    }
+
+    private func createSmoothGradient(reachedColor: Color, unreachedColor: Color, p: Double) -> LinearGradient {
         let blendRange = 0.08
         let stop1 = max(0.0, p - blendRange)
         let stop2 = min(1.0, p + blendRange)
@@ -233,14 +258,13 @@ struct InteractiveTimelineRow: View {
                     .frame(width: 2)
                     .padding(.vertical, -14)
 
-                Circle()
-                    .fill(createSmoothGradient(reachedColor: iconBgColor, unreachedColor: AppConstants.Colors.unreachedBg))
+                iconBackgroundShape
                     .frame(width: 58.67, height: 58.67)
-                    .shadow(color: iconBgColor.opacity(progress > 0 ? 0.25 : 0.05), radius: 6, x: 0, y: 3)
+                    .shadow(color: iconBgColor.opacity(progress > 0 ? 0.2 : 0.03), radius: 5, x: 0, y: 2)
 
                 Image(systemName: item.task.iconSymbol)
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(createSmoothGradient(reachedColor: .white, unreachedColor: iconBgColor))
+                    .foregroundStyle(iconForegroundStyle)
             }
             .frame(width: 58.67)
 
@@ -258,15 +282,7 @@ struct InteractiveTimelineRow: View {
                 Text(item.task.title)
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(isDone ? Color.secondary.opacity(0.6) : AppConstants.Colors.primaryTextDark)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { geo in
-                            Rectangle()
-                                .fill(Color.secondary.opacity(0.6))
-                                .frame(width: isDone ? geo.size.width : 0, height: 2)
-                                .frame(maxHeight: .infinity, alignment: .center)
-                                .animation(.easeInOut(duration: 0.35), value: isDone)
-                        }
-                    }
+                    .strikethrough(isDone, color: Color.secondary.opacity(0.6))
             }
 
             Spacer(minLength: 8)
