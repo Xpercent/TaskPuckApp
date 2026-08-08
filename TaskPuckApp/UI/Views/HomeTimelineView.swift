@@ -6,6 +6,8 @@ public struct HomeTimelineView: View {
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var visibleWeekOffset = 0
     @State private var scrollPositionDateString: String? = DateUtils.string(from: Calendar.current.startOfDay(for: Date()))
+    // 引入程序化滚动标记锁，防止滚动动画中途触发 onChange 错乱
+    @State private var isProgrammaticScroll = false
 
     private let weekOffsets = AppConstants.Timeline.weekOffsetRange
     private let dayOffsets = Array(-100...100)
@@ -39,17 +41,23 @@ public struct HomeTimelineView: View {
                     .frame(height: 52) // 压缩周日历区域高度
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .onChange(of: visibleWeekOffset) { _, newOffset in
+                        guard !isProgrammaticScroll else { return }
                         let currentWeekOfSelected = DateUtils.startOfWeek(containing: Date(), addingWeeks: newOffset)
                         let selectedWeekday = calendar.component(.weekday, from: selectedDate)
                         let targetDate = calendar.date(byAdding: .day, value: selectedWeekday - 1, to: currentWeekOfSelected) ?? currentWeekOfSelected
                         
                         if !calendar.isDate(targetDate, inSameDayAs: selectedDate) {
+                            isProgrammaticScroll = true
                             selectedDate = targetDate
                             let dateString = DateUtils.string(from: targetDate)
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                 scrollPositionDateString = dateString
                             }
                             engine.selectDate(dateString)
+                            
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                isProgrammaticScroll = false
+                            }
                         }
                     }
                 }
@@ -73,11 +81,15 @@ public struct HomeTimelineView: View {
                 .scrollPosition(id: $scrollPositionDateString)
                 .scrollTargetBehavior(.viewAligned)
                 .onChange(of: scrollPositionDateString) { _, newDateString in
+                    // 若为点击日历或程序触发的滚动，忽略动画中途产生的 ID 变化
+                    guard !isProgrammaticScroll else { return }
                     guard let newDateString, newDateString != DateUtils.string(from: selectedDate) else { return }
                     if let newDate = dateFromFormattedString(newDateString) {
                         selectedDate = newDate
-                        let currentWeek = DateUtils.startOfWeek(containing: Date())
-                        visibleWeekOffset = calendar.dateComponents([.weekOfYear], from: currentWeek, to: DateUtils.startOfWeek(containing: newDate)).weekOfYear ?? 0
+                        let targetOffset = calculateWeekOffset(for: newDate)
+                        if visibleWeekOffset != targetOffset {
+                            visibleWeekOffset = targetOffset
+                        }
                         engine.selectDate(newDateString)
                     }
                 }
@@ -123,13 +135,23 @@ public struct HomeTimelineView: View {
     private func selectTimelineDate(_ date: Date) {
         let dateString = DateUtils.string(from: date)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        
+        isProgrammaticScroll = true
+        selectedDate = date
+        let targetOffset = calculateWeekOffset(for: date)
+        if visibleWeekOffset != targetOffset {
+            visibleWeekOffset = targetOffset
+        }
+        
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            selectedDate = date
             scrollPositionDateString = dateString
         }
-        let currentWeek = DateUtils.startOfWeek(containing: Date())
-        visibleWeekOffset = calendar.dateComponents([.weekOfYear], from: currentWeek, to: DateUtils.startOfWeek(containing: date)).weekOfYear ?? 0
         engine.selectDate(dateString)
+
+        // 待动画完成后解除程序化滚动锁
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            isProgrammaticScroll = false
+        }
     }
 
     private func synchronizeTimelineDate(with dateString: String) {
@@ -137,14 +159,25 @@ public struct HomeTimelineView: View {
               !calendar.isDate(date, inSameDayAs: selectedDate) else {
             return
         }
+        isProgrammaticScroll = true
         selectedDate = date
         scrollPositionDateString = dateString
+        let targetOffset = calculateWeekOffset(for: date)
+        if visibleWeekOffset != targetOffset {
+            visibleWeekOffset = targetOffset
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            isProgrammaticScroll = false
+        }
+    }
+
+    // 精确安全的周偏移量计算，避免跨年/跨月 weekOfYear 溢出 Bug
+    private func calculateWeekOffset(for date: Date) -> Int {
         let currentWeek = DateUtils.startOfWeek(containing: Date())
-        visibleWeekOffset = calendar.dateComponents(
-            [.weekOfYear],
-            from: currentWeek,
-            to: DateUtils.startOfWeek(containing: date)
-        ).weekOfYear ?? 0
+        let targetWeek = DateUtils.startOfWeek(containing: date)
+        let days = calendar.dateComponents([.day], from: currentWeek, to: targetWeek).day ?? 0
+        return Int(round(Double(days) / 7.0))
     }
 
     private func dateFromFormattedString(_ string: String) -> Date? {
