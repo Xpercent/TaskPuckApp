@@ -6,10 +6,17 @@ public struct HomeTimelineView: View {
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var visibleWeekOffset = 0
     @State private var displayedDate = Calendar.current.startOfDay(for: Date())
+    @State private var transition: CardTransition?
+    @State private var cardOffset: CGFloat = 0
+    @State private var dragTranslation: CGFloat = 0
+    
+    // 手势方向锁定状态，彻底解决横向滑动被垂直 ScrollView 误判抢夺的问题
+    @State private var gestureDirection: GestureDirection = .undecided
+    @State private var isSwipingHorizontally: Bool = false
 
     private let weekOffsets = AppConstants.Timeline.weekOffsetRange
     private let calendar = DateUtils.calendar
-    private let cardPadding: CGFloat = 8
+    private let cardSpacing: CGFloat = 16 // 严格保留原设计的卡片间距
 
     public var body: some View {
         let _ = engine.dataVersion
@@ -50,7 +57,7 @@ public struct HomeTimelineView: View {
                 .padding(.top, 0)
                 .padding(.bottom, 2)
 
-                // 2. 原生 TabView 分页时间轴卡片区域（拥有原生手势方向锁与 120Hz 丝滑物理滚轴）
+                // 2. 严格保留原设计的 3 卡片滑动滑轨区域（等宽卡片 + 16pt 间距）
                 threeCardTimeline
                     .ignoresSafeArea(edges: .bottom)
             }
@@ -105,51 +112,115 @@ public struct HomeTimelineView: View {
         requestDateSelection(date, updateEngine: false)
     }
 
-    // 使用原生 TabView(.page) 替代 HStack + DragGesture
+    // 完全还原原本的等宽卡片 + 间距布局
     private var threeCardTimeline: some View {
-        let dates = cardDates
+        GeometryReader { proxy in
+            let cardWidth = proxy.size.width // 100% 屏幕等宽
+            let slotWidth = cardWidth + cardSpacing // 屏幕宽 + 16pt 间距
+            let dates = cardDates
 
-        return TabView(selection: Binding(
-            get: { dates.current },
-            set: { newDate in
-                if !calendar.isDate(newDate, inSameDayAs: displayedDate) {
-                    requestDateSelection(newDate, isUserSwipe: true)
-                }
+            HStack(spacing: cardSpacing) {
+                timelineCard(for: dates.previous, width: cardWidth)
+                timelineCard(for: dates.current, width: cardWidth)
+                timelineCard(for: dates.next, width: cardWidth)
             }
-        )) {
-            timelineCard(for: dates.previous)
-                .tag(dates.previous)
-
-            timelineCard(for: dates.current)
-                .tag(dates.current)
-
-            timelineCard(for: dates.next)
-                .tag(dates.next)
+            .offset(x: -slotWidth + transitionOffset(for: slotWidth))
+            .simultaneousGesture(timelineDragGesture(slotWidth: slotWidth))
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        .clipped()
     }
 
     private var cardDates: (previous: Date, current: Date, next: Date) {
-        let current = calendar.startOfDay(for: displayedDate)
-        return (dayOffset(-1, from: current), current, dayOffset(1, from: current))
+        guard let transition else {
+            return (dayOffset(-1, from: displayedDate), displayedDate, dayOffset(1, from: displayedDate))
+        }
+
+        switch transition.direction {
+        case .forward:
+            return (dayOffset(-1, from: displayedDate), displayedDate, transition.destination)
+        case .backward:
+            return (transition.destination, displayedDate, dayOffset(1, from: displayedDate))
+        }
     }
 
-    private func timelineCard(for date: Date) -> some View {
+    private func timelineCard(for date: Date, width: CGFloat) -> some View {
         let dateString = DateUtils.string(from: date)
-        return TimelineCardView(date: date, dateString: dateString)
-            .padding(.horizontal, cardPadding)
-            .id(dateString)
+        return TimelineCardView(
+            date: date,
+            dateString: dateString,
+            isScrollDisabled: isSwipingHorizontally
+        )
+        .frame(width: width)
+        .id(dateString)
+    }
+
+    // 优化后的手势识别器：带有方向锁定，防止横向手势中途丢包或被 ScrollView 强行中断
+    private func timelineDragGesture(slotWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 5)
+            .onChanged { value in
+                guard transition == nil else { return }
+
+                let dx = value.translation.width
+                let dy = value.translation.height
+
+                // 首次移动时锁定方向（避免倾斜滑动导致误判）
+                if gestureDirection == .undecided {
+                    if abs(dx) > abs(dy) && abs(dx) > 6 {
+                        gestureDirection = .horizontal
+                        isSwipingHorizontally = true
+                    } else if abs(dy) > abs(dx) && abs(dy) > 6 {
+                        gestureDirection = .vertical
+                        isSwipingHorizontally = false
+                    }
+                }
+
+                // 只要判定锁定为横向，全程稳定响应位移
+                if gestureDirection == .horizontal {
+                    dragTranslation = dx
+                }
+            }
+            .onEnded { value in
+                let currentDirection = gestureDirection
+                let currentTranslation = dragTranslation
+
+                // 重置手势状态
+                gestureDirection = .undecided
+                isSwipingHorizontally = false
+
+                guard transition == nil, currentDirection == .horizontal else {
+                    withAnimation(.smooth(duration: 0.25, extraBounce: 0)) {
+                        dragTranslation = 0
+                    }
+                    return
+                }
+
+                // 位移超过 15% 门限即稳定判定切换，无需受松手瞬间的斜向惯性影响
+                if abs(currentTranslation) > slotWidth * 0.15 {
+                    let initialCardOffset = currentTranslation / slotWidth
+                    dragTranslation = 0
+                    requestDateSelection(
+                        dayOffset(currentTranslation < 0 ? 1 : -1, from: displayedDate),
+                        initialCardOffset: initialCardOffset
+                    )
+                } else {
+                    withAnimation(.smooth(duration: 0.25, extraBounce: 0)) {
+                        dragTranslation = 0
+                    }
+                }
+            }
+    }
+
+    private func transitionOffset(for slotWidth: CGFloat) -> CGFloat {
+        (transition == nil ? dragTranslation : cardOffset * slotWidth)
     }
 
     private func requestDateSelection(
         _ date: Date,
         updateEngine: Bool = true,
-        isUserSwipe: Bool = false
+        initialCardOffset: CGFloat = 0
     ) {
         let normalizedDate = calendar.startOfDay(for: date)
-        
-        // 当选择的日期完全无变化时跳过
-        if calendar.isDate(normalizedDate, inSameDayAs: selectedDate) && calendar.isDate(normalizedDate, inSameDayAs: displayedDate) {
+        if calendar.isDate(normalizedDate, inSameDayAs: selectedDate) && transition == nil {
             return
         }
 
@@ -162,16 +233,42 @@ public struct HomeTimelineView: View {
             engine.selectDate(DateUtils.string(from: normalizedDate))
         }
 
-        if isUserSwipe {
-            // 手势翻页：TabView 已经完成视滑过渡，无缝静默更新 3 卡片基准
+        // 核心打断逻辑：如果当前还有正在进行的动画，瞬间快进并打断上一次动画，不进行排队滞后
+        if let currentTransition = transition {
             withTransaction(Transaction(animation: nil)) {
-                displayedDate = normalizedDate
+                displayedDate = currentTransition.destination
+                transition = nil
+                cardOffset = 0
             }
-        } else {
-            // 顶部日历点击：动画平滑过渡切换卡片
-            withAnimation(.smooth(duration: 0.25, extraBounce: 0)) {
-                displayedDate = normalizedDate
-            }
+        }
+
+        beginTransition(to: normalizedDate, initialCardOffset: initialCardOffset)
+    }
+
+    private func beginTransition(to destination: Date, initialCardOffset: CGFloat = 0) {
+        guard !calendar.isDate(destination, inSameDayAs: displayedDate) else { return }
+
+        let direction: CardTransition.Direction = destination > displayedDate ? .forward : .backward
+        let nextTransition = CardTransition(destination: destination, direction: direction)
+        transition = nextTransition
+        cardOffset = initialCardOffset
+
+        withAnimation(
+            .smooth(duration: 0.25, extraBounce: 0),
+            completionCriteria: .removed
+        ) {
+            cardOffset = direction == .forward ? -1 : 1
+        } completion: {
+            completeTransition(nextTransition)
+        }
+    }
+
+    private func completeTransition(_ finishedTransition: CardTransition) {
+        guard transition?.id == finishedTransition.id else { return }
+        withTransaction(Transaction(animation: nil)) {
+            displayedDate = finishedTransition.destination
+            transition = nil
+            cardOffset = 0
         }
     }
 
@@ -200,10 +297,28 @@ public struct HomeTimelineView: View {
     }
 }
 
-// 独立的 TimelineCardView 结合内部 ScrollView
+private enum GestureDirection {
+    case undecided
+    case horizontal
+    case vertical
+}
+
+private struct CardTransition: Equatable {
+    enum Direction: Equatable {
+        case backward
+        case forward
+    }
+
+    let id = UUID()
+    let destination: Date
+    let direction: Direction
+}
+
+// 保持卡片内部结构不改变
 struct TimelineCardView: View {
     let date: Date
     let dateString: String
+    var isScrollDisabled: Bool = false
     @Environment(TaskEngine.self) private var engine
 
     var body: some View {
@@ -228,6 +343,7 @@ struct TimelineCardView: View {
                 .padding(.top, 24)
                 .padding(.bottom, 120)
             }
+            .scrollDisabled(isScrollDisabled) // 横向滑动卡片时暂时锁住垂直滚动，完美防抖
         }
         .contentShape(Rectangle())
         .ignoresSafeArea(edges: .bottom)
