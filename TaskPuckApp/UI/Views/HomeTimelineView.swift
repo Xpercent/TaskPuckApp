@@ -6,7 +6,6 @@ public struct HomeTimelineView: View {
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var visibleWeekOffset = 0
     @State private var displayedDate = Calendar.current.startOfDay(for: Date())
-    @State private var pendingDate: Date?
     @State private var transition: CardTransition?
     @State private var cardOffset: CGFloat = 0
     @State private var dragTranslation: CGFloat = 0
@@ -21,7 +20,7 @@ public struct HomeTimelineView: View {
             AppConstants.Colors.backgroundGrey.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // 1. 日历与头部区域（整体上移，间距全面紧凑化）
+                // 1. 日历与头部区域
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 4) {
                         Text(DateUtils.yearString(from: selectedDate))
@@ -39,7 +38,7 @@ public struct HomeTimelineView: View {
                                 .tag(offset)
                         }
                     }
-                    .frame(height: 52) // 压缩周日历区域高度
+                    .frame(height: 52)
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .onChange(of: visibleWeekOffset) { _, newOffset in
                         let currentWeekOfSelected = DateUtils.startOfWeek(containing: Date(), addingWeeks: newOffset)
@@ -51,10 +50,10 @@ public struct HomeTimelineView: View {
                         }
                     }
                 }
-                .padding(.top, 0) // 整体向上移动
-                .padding(.bottom, 2) // 缩小日历与时间轴卡片的垂直间距
+                .padding(.top, 0)
+                .padding(.bottom, 2)
 
-                // 2. 时间轴卡片区域（性能优化，120Hz 丝滑流畅）
+                // 2. 时间轴卡片区域
                 threeCardTimeline
                     .ignoresSafeArea(edges: .bottom)
             }
@@ -76,7 +75,7 @@ public struct HomeTimelineView: View {
                 Button {
                     selectTimelineDate(date)
                 } label: {
-                    VStack(spacing: 2) { // 缩小日历星期标题与号数的垂直间距
+                    VStack(spacing: 2) {
                         Text(DateUtils.weekdayString(from: date))
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.secondary)
@@ -143,7 +142,6 @@ public struct HomeTimelineView: View {
         let dateString = DateUtils.string(from: date)
         return TimelineCardView(date: date, dateString: dateString)
             .frame(width: width)
-            // A date-specific identity prevents an outgoing card from receiving incoming task content.
             .id(dateString)
     }
 
@@ -157,7 +155,7 @@ public struct HomeTimelineView: View {
                 guard transition == nil else { return }
                 let translation = value.translation.width
                 guard abs(translation) > abs(value.translation.height), abs(translation) > slotWidth * 0.2 else {
-                    withAnimation(.smooth(duration: 0.3, extraBounce: 0)) {
+                    withAnimation(.smooth(duration: 0.25, extraBounce: 0)) {
                         dragTranslation = 0
                     }
                     return
@@ -181,7 +179,11 @@ public struct HomeTimelineView: View {
         initialCardOffset: CGFloat = 0
     ) {
         let normalizedDate = calendar.startOfDay(for: date)
-        guard !calendar.isDate(normalizedDate, inSameDayAs: selectedDate) else { return }
+        
+        // 当选择的日期无变化且无进行中的动画时直接返回
+        if calendar.isDate(normalizedDate, inSameDayAs: selectedDate) && transition == nil {
+            return
+        }
 
         selectedDate = normalizedDate
         let targetOffset = calculateWeekOffset(for: normalizedDate)
@@ -192,11 +194,16 @@ public struct HomeTimelineView: View {
             engine.selectDate(DateUtils.string(from: normalizedDate))
         }
 
-        if transition != nil {
-            // Keep the latest tap without replacing the data in the card currently leaving the screen.
-            pendingDate = normalizedDate
-            return
+        // 核心优化：若有未完成的滑动动画，瞬间将卡片基准推进至上一目标，打断旧动画并立即响应最新点击
+        if let currentTransition = transition {
+            withTransaction(Transaction(animation: nil)) {
+                displayedDate = currentTransition.destination
+                transition = nil
+                cardOffset = 0
+                dragTranslation = 0
+            }
         }
+
         beginTransition(to: normalizedDate, initialCardOffset: initialCardOffset)
     }
 
@@ -209,7 +216,7 @@ public struct HomeTimelineView: View {
         cardOffset = initialCardOffset
 
         withAnimation(
-            .smooth(duration: 0.3, extraBounce: 0),
+            .smooth(duration: 0.25, extraBounce: 0),
             completionCriteria: .removed
         ) {
             cardOffset = direction == .forward ? -1 : 1
@@ -225,18 +232,12 @@ public struct HomeTimelineView: View {
             transition = nil
             cardOffset = 0
         }
-
-        if let pendingDate {
-            self.pendingDate = nil
-            beginTransition(to: pendingDate)
-        }
     }
 
     private func dayOffset(_ offset: Int, from date: Date) -> Date {
         calendar.date(byAdding: .day, value: offset, to: date) ?? date
     }
 
-    // 精确安全的周偏移量计算，避免跨年/跨月 weekOfYear 溢出 Bug
     private func calculateWeekOffset(for date: Date) -> Int {
         let currentWeek = DateUtils.startOfWeek(containing: Date())
         let targetWeek = DateUtils.startOfWeek(containing: date)
@@ -269,7 +270,6 @@ private struct CardTransition: Equatable {
     let direction: Direction
 }
 
-// 独立抽离 TimelineCardView 并结合 .compositingGroup() 解决左右滑动卡顿
 struct TimelineCardView: View {
     let date: Date
     let dateString: String
@@ -300,7 +300,7 @@ struct TimelineCardView: View {
         }
         .contentShape(Rectangle())
         .ignoresSafeArea(edges: .bottom)
-        .compositingGroup() // 开启 GPU 离屏渲染纹理缓存，大幅提升滑动帧率
+        .compositingGroup()
     }
 }
 
