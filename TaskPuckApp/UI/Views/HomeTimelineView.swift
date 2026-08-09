@@ -6,13 +6,10 @@ public struct HomeTimelineView: View {
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var visibleWeekOffset = 0
     @State private var displayedDate = Calendar.current.startOfDay(for: Date())
-    @State private var transition: CardTransition?
-    @State private var cardOffset: CGFloat = 0
-    @State private var dragTranslation: CGFloat = 0
 
     private let weekOffsets = AppConstants.Timeline.weekOffsetRange
     private let calendar = DateUtils.calendar
-    private let cardSpacing: CGFloat = 16
+    private let cardPadding: CGFloat = 8
 
     public var body: some View {
         let _ = engine.dataVersion
@@ -53,7 +50,7 @@ public struct HomeTimelineView: View {
                 .padding(.top, 0)
                 .padding(.bottom, 2)
 
-                // 2. 时间轴卡片区域
+                // 2. 原生 TabView 分页时间轴卡片区域（拥有原生手势方向锁与 120Hz 丝滑物理滚轴）
                 threeCardTimeline
                     .ignoresSafeArea(edges: .bottom)
             }
@@ -108,80 +105,51 @@ public struct HomeTimelineView: View {
         requestDateSelection(date, updateEngine: false)
     }
 
+    // 使用原生 TabView(.page) 替代 HStack + DragGesture
     private var threeCardTimeline: some View {
-        GeometryReader { proxy in
-            let cardWidth = proxy.size.width
-            let slotWidth = cardWidth + cardSpacing
-            let dates = cardDates
+        let dates = cardDates
 
-            HStack(spacing: cardSpacing) {
-                timelineCard(for: dates.previous, width: cardWidth)
-                timelineCard(for: dates.current, width: cardWidth)
-                timelineCard(for: dates.next, width: cardWidth)
+        return TabView(selection: Binding(
+            get: { dates.current },
+            set: { newDate in
+                if !calendar.isDate(newDate, inSameDayAs: displayedDate) {
+                    requestDateSelection(newDate, isUserSwipe: true)
+                }
             }
-            .offset(x: -slotWidth + transitionOffset(for: slotWidth))
-            .simultaneousGesture(timelineDragGesture(slotWidth: slotWidth))
+        )) {
+            timelineCard(for: dates.previous)
+                .tag(dates.previous)
+
+            timelineCard(for: dates.current)
+                .tag(dates.current)
+
+            timelineCard(for: dates.next)
+                .tag(dates.next)
         }
-        .clipped()
+        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     private var cardDates: (previous: Date, current: Date, next: Date) {
-        guard let transition else {
-            return (dayOffset(-1, from: displayedDate), displayedDate, dayOffset(1, from: displayedDate))
-        }
-
-        switch transition.direction {
-        case .forward:
-            return (dayOffset(-1, from: displayedDate), displayedDate, transition.destination)
-        case .backward:
-            return (transition.destination, displayedDate, dayOffset(1, from: displayedDate))
-        }
+        let current = calendar.startOfDay(for: displayedDate)
+        return (dayOffset(-1, from: current), current, dayOffset(1, from: current))
     }
 
-    private func timelineCard(for date: Date, width: CGFloat) -> some View {
+    private func timelineCard(for date: Date) -> some View {
         let dateString = DateUtils.string(from: date)
         return TimelineCardView(date: date, dateString: dateString)
-            .frame(width: width)
+            .padding(.horizontal, cardPadding)
             .id(dateString)
-    }
-
-    private func timelineDragGesture(slotWidth: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { value in
-                guard transition == nil, abs(value.translation.width) > abs(value.translation.height) else { return }
-                dragTranslation = value.translation.width
-            }
-            .onEnded { value in
-                guard transition == nil else { return }
-                let translation = value.translation.width
-                guard abs(translation) > abs(value.translation.height), abs(translation) > slotWidth * 0.2 else {
-                    withAnimation(.smooth(duration: 0.25, extraBounce: 0)) {
-                        dragTranslation = 0
-                    }
-                    return
-                }
-                let initialCardOffset = translation / slotWidth
-                dragTranslation = 0
-                requestDateSelection(
-                    dayOffset(translation < 0 ? 1 : -1, from: displayedDate),
-                    initialCardOffset: initialCardOffset
-                )
-            }
-    }
-
-    private func transitionOffset(for slotWidth: CGFloat) -> CGFloat {
-        (transition == nil ? dragTranslation : cardOffset * slotWidth)
     }
 
     private func requestDateSelection(
         _ date: Date,
         updateEngine: Bool = true,
-        initialCardOffset: CGFloat = 0
+        isUserSwipe: Bool = false
     ) {
         let normalizedDate = calendar.startOfDay(for: date)
         
-        // 当选择的日期无变化且无进行中的动画时直接返回
-        if calendar.isDate(normalizedDate, inSameDayAs: selectedDate) && transition == nil {
+        // 当选择的日期完全无变化时跳过
+        if calendar.isDate(normalizedDate, inSameDayAs: selectedDate) && calendar.isDate(normalizedDate, inSameDayAs: displayedDate) {
             return
         }
 
@@ -194,43 +162,16 @@ public struct HomeTimelineView: View {
             engine.selectDate(DateUtils.string(from: normalizedDate))
         }
 
-        // 核心优化：若有未完成的滑动动画，瞬间将卡片基准推进至上一目标，打断旧动画并立即响应最新点击
-        if let currentTransition = transition {
+        if isUserSwipe {
+            // 手势翻页：TabView 已经完成视滑过渡，无缝静默更新 3 卡片基准
             withTransaction(Transaction(animation: nil)) {
-                displayedDate = currentTransition.destination
-                transition = nil
-                cardOffset = 0
-                dragTranslation = 0
+                displayedDate = normalizedDate
             }
-        }
-
-        beginTransition(to: normalizedDate, initialCardOffset: initialCardOffset)
-    }
-
-    private func beginTransition(to destination: Date, initialCardOffset: CGFloat = 0) {
-        guard !calendar.isDate(destination, inSameDayAs: displayedDate) else { return }
-
-        let direction: CardTransition.Direction = destination > displayedDate ? .forward : .backward
-        let nextTransition = CardTransition(destination: destination, direction: direction)
-        transition = nextTransition
-        cardOffset = initialCardOffset
-
-        withAnimation(
-            .smooth(duration: 0.25, extraBounce: 0),
-            completionCriteria: .removed
-        ) {
-            cardOffset = direction == .forward ? -1 : 1
-        } completion: {
-            completeTransition(nextTransition)
-        }
-    }
-
-    private func completeTransition(_ finishedTransition: CardTransition) {
-        guard transition?.id == finishedTransition.id else { return }
-        withTransaction(Transaction(animation: nil)) {
-            displayedDate = finishedTransition.destination
-            transition = nil
-            cardOffset = 0
+        } else {
+            // 顶部日历点击：动画平滑过渡切换卡片
+            withAnimation(.smooth(duration: 0.25, extraBounce: 0)) {
+                displayedDate = normalizedDate
+            }
         }
     }
 
@@ -259,17 +200,7 @@ public struct HomeTimelineView: View {
     }
 }
 
-private struct CardTransition: Equatable {
-    enum Direction: Equatable {
-        case backward
-        case forward
-    }
-
-    let id = UUID()
-    let destination: Date
-    let direction: Direction
-}
-
+// 独立的 TimelineCardView 结合内部 ScrollView
 struct TimelineCardView: View {
     let date: Date
     let dateString: String
