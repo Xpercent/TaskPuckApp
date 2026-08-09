@@ -208,22 +208,27 @@ public struct HomeTimelineView: View {
         transition = nextTransition
         cardOffset = initialCardOffset
 
-        withAnimation(.smooth(duration: 0.3, extraBounce: 0)) {
+        withAnimation(
+            .smooth(duration: 0.3, extraBounce: 0),
+            completionCriteria: .removed
+        ) {
             cardOffset = direction == .forward ? -1 : 1
+        } completion: {
+            completeTransition(nextTransition)
+        }
+    }
+
+    private func completeTransition(_ finishedTransition: CardTransition) {
+        guard transition?.id == finishedTransition.id else { return }
+        withTransaction(Transaction(animation: nil)) {
+            displayedDate = finishedTransition.destination
+            transition = nil
+            cardOffset = 0
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.31) {
-            guard self.transition?.id == nextTransition.id else { return }
-            withTransaction(Transaction(animation: nil)) {
-                self.displayedDate = destination
-                self.transition = nil
-                self.cardOffset = 0
-            }
-
-            if let pendingDate = self.pendingDate {
-                self.pendingDate = nil
-                self.beginTransition(to: pendingDate)
-            }
+        if let pendingDate {
+            self.pendingDate = nil
+            beginTransition(to: pendingDate)
         }
     }
 
