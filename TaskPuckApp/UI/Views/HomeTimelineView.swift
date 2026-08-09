@@ -56,6 +56,7 @@ public struct HomeTimelineView: View {
 
                 // 2. 时间轴卡片区域（性能优化，120Hz 丝滑流畅）
                 threeCardTimeline
+                    .ignoresSafeArea(edges: .bottom)
             }
         }
         .onChange(of: engine.selectedDateString) { _, dateString in
@@ -120,7 +121,7 @@ public struct HomeTimelineView: View {
                 timelineCard(for: dates.next, width: cardWidth)
             }
             .offset(x: -slotWidth + transitionOffset(for: slotWidth))
-            .gesture(timelineDragGesture(slotWidth: slotWidth))
+            .simultaneousGesture(timelineDragGesture(slotWidth: slotWidth))
         }
         .clipped()
     }
@@ -156,7 +157,7 @@ public struct HomeTimelineView: View {
                 guard transition == nil else { return }
                 let translation = value.translation.width
                 guard abs(translation) > abs(value.translation.height), abs(translation) > slotWidth * 0.2 else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    withAnimation(.smooth(duration: 0.3, extraBounce: 0)) {
                         dragTranslation = 0
                     }
                     return
@@ -207,11 +208,11 @@ public struct HomeTimelineView: View {
         transition = nextTransition
         cardOffset = initialCardOffset
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+        withAnimation(.smooth(duration: 0.3, extraBounce: 0)) {
             cardOffset = direction == .forward ? -1 : 1
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.31) {
             guard self.transition?.id == nextTransition.id else { return }
             withTransaction(Transaction(animation: nil)) {
                 self.displayedDate = destination
