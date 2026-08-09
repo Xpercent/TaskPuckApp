@@ -5,14 +5,15 @@ public struct HomeTimelineView: View {
     @AppStorage(AppConstants.StorageKeys.appThemeHex) private var themeHex = AppConstants.Appearance.defaultTintHex
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var visibleWeekOffset = 0
-    @State private var scrollPositionDateString: String? = DateUtils.string(from: Calendar.current.startOfDay(for: Date()))
-    // 引入程序化滚动标记锁，防止滚动动画中途触发 onChange 错乱
-    @State private var isProgrammaticScroll = false
+    @State private var displayedDate = Calendar.current.startOfDay(for: Date())
+    @State private var pendingDate: Date?
+    @State private var transition: CardTransition?
+    @State private var cardOffset: CGFloat = 0
+    @State private var dragTranslation: CGFloat = 0
 
     private let weekOffsets = AppConstants.Timeline.weekOffsetRange
-    private let dayOffsets = Array(-100...100)
     private let calendar = DateUtils.calendar
-    private let baseDate = DateUtils.calendar.startOfDay(for: Date())
+    private let cardSpacing: CGFloat = 16
 
     public var body: some View {
         let _ = engine.dataVersion
@@ -41,23 +42,12 @@ public struct HomeTimelineView: View {
                     .frame(height: 52) // 压缩周日历区域高度
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .onChange(of: visibleWeekOffset) { _, newOffset in
-                        guard !isProgrammaticScroll else { return }
                         let currentWeekOfSelected = DateUtils.startOfWeek(containing: Date(), addingWeeks: newOffset)
                         let selectedWeekday = calendar.component(.weekday, from: selectedDate)
                         let targetDate = calendar.date(byAdding: .day, value: selectedWeekday - 1, to: currentWeekOfSelected) ?? currentWeekOfSelected
                         
                         if !calendar.isDate(targetDate, inSameDayAs: selectedDate) {
-                            isProgrammaticScroll = true
-                            selectedDate = targetDate
-                            let dateString = DateUtils.string(from: targetDate)
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                scrollPositionDateString = dateString
-                            }
-                            engine.selectDate(dateString)
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                isProgrammaticScroll = false
-                            }
+                            requestDateSelection(targetDate)
                         }
                     }
                 }
@@ -65,34 +55,7 @@ public struct HomeTimelineView: View {
                 .padding(.bottom, 2) // 缩小日历与时间轴卡片的垂直间距
 
                 // 2. 时间轴卡片区域（性能优化，120Hz 丝滑流畅）
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 16) {
-                        ForEach(dayOffsets, id: \.self) { offset in
-                            let cardDate = calendar.date(byAdding: .day, value: offset, to: baseDate) ?? baseDate
-                            let cardDateString = DateUtils.string(from: cardDate)
-
-                            TimelineCardView(date: cardDate, dateString: cardDateString)
-                                .containerRelativeFrame(.horizontal)
-                                .id(cardDateString)
-                        }
-                    }
-                    .scrollTargetLayout()
-                }
-                .scrollPosition(id: $scrollPositionDateString)
-                .scrollTargetBehavior(.viewAligned)
-                .onChange(of: scrollPositionDateString) { _, newDateString in
-                    // 若为点击日历或程序触发的滚动，忽略动画中途产生的 ID 变化
-                    guard !isProgrammaticScroll else { return }
-                    guard let newDateString, newDateString != DateUtils.string(from: selectedDate) else { return }
-                    if let newDate = dateFromFormattedString(newDateString) {
-                        selectedDate = newDate
-                        let targetOffset = calculateWeekOffset(for: newDate)
-                        if visibleWeekOffset != targetOffset {
-                            visibleWeekOffset = targetOffset
-                        }
-                        engine.selectDate(newDateString)
-                    }
-                }
+                threeCardTimeline
             }
         }
         .onChange(of: engine.selectedDateString) { _, dateString in
@@ -133,25 +96,8 @@ public struct HomeTimelineView: View {
     }
 
     private func selectTimelineDate(_ date: Date) {
-        let dateString = DateUtils.string(from: date)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        
-        isProgrammaticScroll = true
-        selectedDate = date
-        let targetOffset = calculateWeekOffset(for: date)
-        if visibleWeekOffset != targetOffset {
-            visibleWeekOffset = targetOffset
-        }
-        
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            scrollPositionDateString = dateString
-        }
-        engine.selectDate(dateString)
-
-        // 待动画完成后解除程序化滚动锁
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            isProgrammaticScroll = false
-        }
+        requestDateSelection(date)
     }
 
     private func synchronizeTimelineDate(with dateString: String) {
@@ -159,17 +105,129 @@ public struct HomeTimelineView: View {
               !calendar.isDate(date, inSameDayAs: selectedDate) else {
             return
         }
-        isProgrammaticScroll = true
-        selectedDate = date
-        scrollPositionDateString = dateString
-        let targetOffset = calculateWeekOffset(for: date)
+        requestDateSelection(date, updateEngine: false)
+    }
+
+    private var threeCardTimeline: some View {
+        GeometryReader { proxy in
+            let cardWidth = proxy.size.width
+            let slotWidth = cardWidth + cardSpacing
+            let dates = cardDates
+
+            HStack(spacing: cardSpacing) {
+                timelineCard(for: dates.previous, width: cardWidth)
+                timelineCard(for: dates.current, width: cardWidth)
+                timelineCard(for: dates.next, width: cardWidth)
+            }
+            .offset(x: -slotWidth + transitionOffset(for: slotWidth))
+            .gesture(timelineDragGesture(slotWidth: slotWidth))
+        }
+        .clipped()
+    }
+
+    private var cardDates: (previous: Date, current: Date, next: Date) {
+        guard let transition else {
+            return (dayOffset(-1, from: displayedDate), displayedDate, dayOffset(1, from: displayedDate))
+        }
+
+        switch transition.direction {
+        case .forward:
+            return (dayOffset(-1, from: displayedDate), displayedDate, transition.destination)
+        case .backward:
+            return (transition.destination, displayedDate, dayOffset(1, from: displayedDate))
+        }
+    }
+
+    private func timelineCard(for date: Date, width: CGFloat) -> some View {
+        let dateString = DateUtils.string(from: date)
+        return TimelineCardView(date: date, dateString: dateString)
+            .frame(width: width)
+            // A date-specific identity prevents an outgoing card from receiving incoming task content.
+            .id(dateString)
+    }
+
+    private func timelineDragGesture(slotWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                guard transition == nil, abs(value.translation.width) > abs(value.translation.height) else { return }
+                dragTranslation = value.translation.width
+            }
+            .onEnded { value in
+                guard transition == nil else { return }
+                let translation = value.translation.width
+                guard abs(translation) > abs(value.translation.height), abs(translation) > slotWidth * 0.2 else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        dragTranslation = 0
+                    }
+                    return
+                }
+                let initialCardOffset = translation / slotWidth
+                dragTranslation = 0
+                requestDateSelection(
+                    dayOffset(translation < 0 ? 1 : -1, from: displayedDate),
+                    initialCardOffset: initialCardOffset
+                )
+            }
+    }
+
+    private func transitionOffset(for slotWidth: CGFloat) -> CGFloat {
+        (transition == nil ? dragTranslation : cardOffset * slotWidth)
+    }
+
+    private func requestDateSelection(
+        _ date: Date,
+        updateEngine: Bool = true,
+        initialCardOffset: CGFloat = 0
+    ) {
+        let normalizedDate = calendar.startOfDay(for: date)
+        guard !calendar.isDate(normalizedDate, inSameDayAs: selectedDate) else { return }
+
+        selectedDate = normalizedDate
+        let targetOffset = calculateWeekOffset(for: normalizedDate)
         if visibleWeekOffset != targetOffset {
             visibleWeekOffset = targetOffset
         }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            isProgrammaticScroll = false
+        if updateEngine {
+            engine.selectDate(DateUtils.string(from: normalizedDate))
         }
+
+        if transition != nil {
+            // Keep the latest tap without replacing the data in the card currently leaving the screen.
+            pendingDate = normalizedDate
+            return
+        }
+        beginTransition(to: normalizedDate, initialCardOffset: initialCardOffset)
+    }
+
+    private func beginTransition(to destination: Date, initialCardOffset: CGFloat = 0) {
+        guard !calendar.isDate(destination, inSameDayAs: displayedDate) else { return }
+
+        let direction: CardTransition.Direction = destination > displayedDate ? .forward : .backward
+        let nextTransition = CardTransition(destination: destination, direction: direction)
+        transition = nextTransition
+        cardOffset = initialCardOffset
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            cardOffset = direction == .forward ? -1 : 1
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            guard self.transition?.id == nextTransition.id else { return }
+            withTransaction(Transaction(animation: nil)) {
+                self.displayedDate = destination
+                self.transition = nil
+                self.cardOffset = 0
+            }
+
+            if let pendingDate = self.pendingDate {
+                self.pendingDate = nil
+                self.beginTransition(to: pendingDate)
+            }
+        }
+    }
+
+    private func dayOffset(_ offset: Int, from date: Date) -> Date {
+        calendar.date(byAdding: .day, value: offset, to: date) ?? date
     }
 
     // 精确安全的周偏移量计算，避免跨年/跨月 weekOfYear 溢出 Bug
@@ -192,6 +250,17 @@ public struct HomeTimelineView: View {
         components.day = day
         return calendar.date(from: components)
     }
+}
+
+private struct CardTransition: Equatable {
+    enum Direction: Equatable {
+        case backward
+        case forward
+    }
+
+    let id = UUID()
+    let destination: Date
+    let direction: Direction
 }
 
 // 独立抽离 TimelineCardView 并结合 .compositingGroup() 解决左右滑动卡顿
