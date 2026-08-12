@@ -406,8 +406,9 @@ public struct CreateTaskSheet: View {
 
     private func actionButton(title: String, color: Color, action: @escaping () -> Void) -> some View {
         let requiresTaskDetails = title == "创建任务" || title == "更新"
+        // 移除 !hasStartTime，允许不设置开始时间时也能创建/更新任务
         let isDisabled = requiresTaskDetails && (
-            normalizedTaskTitle.isEmpty || !hasStartTime || recurrenceSelectionInvalid
+            normalizedTaskTitle.isEmpty || recurrenceSelectionInvalid
         )
 
         return Button(action: action) {
