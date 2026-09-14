@@ -48,14 +48,13 @@ public struct HomeTimelineView: View {
                 .padding(.top, 0)
                 .padding(.bottom, 2)
 
-                // 2. 当前日期时间轴：横滑后直接替换日期内容，不做卡片位移动画
+                // 2. 当前日期时间轴
                 TimelineCardView(
                     date: selectedDate,
                     dateString: DateUtils.string(from: selectedDate)
                 )
                 .id(DateUtils.string(from: selectedDate))
                 .ignoresSafeArea(edges: .bottom)
-                .simultaneousGesture(dateSwipeGesture)
             }
         }
         .onChange(of: engine.selectedDateString) { _, dateString in
@@ -111,17 +110,6 @@ public struct HomeTimelineView: View {
         }
     }
 
-    private var dateSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 20)
-            .onEnded { value in
-                let horizontalDistance = value.translation.width
-                guard abs(horizontalDistance) > abs(value.translation.height),
-                      abs(horizontalDistance) >= 50 else { return }
-                let offset = horizontalDistance < 0 ? 1 : -1
-                requestDateSelection(dayOffset(offset, from: selectedDate))
-            }
-    }
-
     private func requestDateSelection(_ date: Date, updateEngine: Bool = true) {
         let normalizedDate = calendar.startOfDay(for: date)
         guard !calendar.isDate(normalizedDate, inSameDayAs: selectedDate) else { return }
@@ -134,10 +122,6 @@ public struct HomeTimelineView: View {
         if updateEngine {
             engine.selectDate(DateUtils.string(from: normalizedDate))
         }
-    }
-
-    private func dayOffset(_ offset: Int, from date: Date) -> Date {
-        calendar.date(byAdding: .day, value: offset, to: date) ?? date
     }
 
     private func calculateWeekOffset(for date: Date) -> Int {
